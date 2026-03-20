@@ -127,10 +127,10 @@ export async function listActivity(userId: string, limit = 20) {
           userId: "asc"
         },
         {
-          createdAt: "desc"
+          createdAt: "asc"
         }
       ],
-      limit
+      limit: Math.max(limit, 50)
     })
   });
 
@@ -145,12 +145,15 @@ export async function listActivity(userId: string, limit = 20) {
     }>;
   };
 
-  return payload.docs.map((doc) => ({
-    id: doc._id,
-    userId: doc.userId,
-    spotId: doc.spotId,
-    title: doc.title,
-    type: doc.type,
-    createdAt: doc.createdAt
-  }));
+  return payload.docs
+    .map((doc) => ({
+      id: doc._id,
+      userId: doc.userId,
+      spotId: doc.spotId,
+      title: doc.title,
+      type: doc.type,
+      createdAt: doc.createdAt
+    }))
+    .reverse()
+    .slice(0, limit);
 }
