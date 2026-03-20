@@ -122,14 +122,6 @@ export async function listActivity(userId: string, limit = 20) {
         userId
       },
       fields: ["_id", "userId", "spotId", "title", "type", "createdAt"],
-      sort: [
-        {
-          userId: "asc"
-        },
-        {
-          createdAt: "asc"
-        }
-      ],
       limit: Math.max(limit, 50)
     })
   });
@@ -154,6 +146,6 @@ export async function listActivity(userId: string, limit = 20) {
       type: doc.type,
       createdAt: doc.createdAt
     }))
-    .reverse()
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
 }
