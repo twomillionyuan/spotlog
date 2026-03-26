@@ -6,6 +6,7 @@ import {
   createTaskList,
   getTaskList,
   listTaskLists,
+  reorderTaskLists,
   updateTaskList
 } from "../store.js";
 
@@ -19,6 +20,34 @@ listsRouter.get("/", async (req, res) => {
   res.status(200).json({
     lists
   });
+});
+
+listsRouter.post("/reorder", async (req, res) => {
+  const orderedListIds = Array.isArray(req.body?.listIds)
+    ? req.body.listIds.filter((value: unknown): value is string => typeof value === "string")
+    : [];
+
+  if (orderedListIds.length === 0) {
+    return res.status(400).json({
+      error: "listIds is required"
+    });
+  }
+
+  try {
+    const lists = await reorderTaskLists(req.authUser!.id, orderedListIds);
+
+    return res.status(200).json({
+      lists
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_LIST_ORDER") {
+      return res.status(400).json({
+        error: "Invalid list order"
+      });
+    }
+
+    throw error;
+  }
 });
 
 listsRouter.post("/", async (req, res) => {

@@ -17,6 +17,7 @@ export type TaskListRow = {
   user_id: string;
   name: string;
   color: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
@@ -30,6 +31,8 @@ export type TaskRow = {
   notes: string;
   urgency: TaskUrgency;
   dueDate: string | null;
+  attachmentUrl: string | null;
+  attachmentStorageKey: string | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +46,8 @@ export type TaskResponse = {
   notes: string;
   urgency: TaskUrgency;
   dueDate: string | null;
+  attachmentUrl: string | null;
+  attachmentStorageKey: string | null;
   completed: boolean;
   completedAt: string | null;
   createdAt: string;
@@ -60,6 +65,7 @@ export type TaskListResponse = {
   id: string;
   name: string;
   color: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
   summary: TaskCounts;
@@ -80,4 +86,16 @@ export type DashboardResponse = {
   summary: DashboardSummary;
   urgentTasks: TaskResponse[];
   recentCompletions: TaskResponse[];
+};
+
+export type ActivityEventType = "created" | "updated" | "completed" | "deleted" | "attached";
+
+export type ActivityEvent = {
+  id: string;
+  userId: string;
+  entityType: "list" | "task";
+  entityId: string;
+  title: string;
+  type: ActivityEventType;
+  createdAt: string;
 };

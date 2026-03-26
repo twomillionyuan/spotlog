@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
+import { Link } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { getDashboard, getLists } from "@/src/lib/api";
-import { formatCompletion } from "@/src/lib/format";
+import { getActivity, getDashboard } from "@/src/lib/api";
+import { formatDateTime } from "@/src/lib/format";
 import { theme } from "@/src/theme/tokens";
-import type { Dashboard, TaskList } from "@/src/types/api";
+import type { ActivityEvent, Dashboard } from "@/src/types/api";
 
 export default function ProfileScreen() {
   const { token, user, signOut } = useAuth();
   const isFocused = useIsFocused();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [lists, setLists] = useState<TaskList[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,13 +31,13 @@ export default function ProfileScreen() {
     }
 
     try {
-      const [nextDashboard, nextLists] = await Promise.all([
+      const [nextDashboard, nextActivity] = await Promise.all([
         getDashboard(token),
-        getLists(token)
+        getActivity(token)
       ]);
 
       setDashboard(nextDashboard);
-      setLists(nextLists);
+      setActivity(nextActivity);
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not load account stats");
@@ -60,14 +61,6 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
       >
-        <View style={styles.header}>
-          <Text style={styles.kicker}>Profile</Text>
-          <Text style={styles.title}>Progress that stays visible</Text>
-          <Text style={styles.subtitle}>
-            Track how much you have completed and which lists still carry the most unfinished work.
-          </Text>
-        </View>
-
         <View style={styles.accountCard}>
           <Text style={styles.accountLabel}>Signed in as</Text>
           <Text style={styles.accountValue}>{user?.email ?? "Unknown user"}</Text>
@@ -98,42 +91,48 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.grid}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Total tasks</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.totalTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Overdue</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.overdueTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Due today</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.dueTodayTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Completion</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.completionRate}%</Text>
-              </View>
+              <Link href={"/(tabs)/lists" as never} asChild>
+                <Pressable style={({ pressed }) => [styles.metricCard, pressed && styles.cardPressed]}>
+                  <Text style={styles.metricLabel}>Total tasks</Text>
+                  <Text style={styles.metricValue}>{dashboard.summary.totalTasks}</Text>
+                </Pressable>
+              </Link>
+              <Link href={"/(tabs)/lists" as never} asChild>
+                <Pressable style={({ pressed }) => [styles.metricCard, pressed && styles.cardPressed]}>
+                  <Text style={styles.metricLabel}>Overdue</Text>
+                  <Text style={styles.metricValue}>{dashboard.summary.overdueTasks}</Text>
+                </Pressable>
+              </Link>
+              <Link href={"/(tabs)/lists" as never} asChild>
+                <Pressable style={({ pressed }) => [styles.metricCard, pressed && styles.cardPressed]}>
+                  <Text style={styles.metricLabel}>Due today</Text>
+                  <Text style={styles.metricValue}>{dashboard.summary.dueTodayTasks}</Text>
+                </Pressable>
+              </Link>
+              <Link href={"/(tabs)/lists" as never} asChild>
+                <Pressable style={({ pressed }) => [styles.metricCard, pressed && styles.cardPressed]}>
+                  <Text style={styles.metricLabel}>Completion</Text>
+                  <Text style={styles.metricValue}>{dashboard.summary.completionRate}%</Text>
+                </Pressable>
+              </Link>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>By list</Text>
-              {lists.map((list) => (
-                <View key={list.id} style={styles.listRow}>
-                  <View style={styles.listRowTop}>
-                    <View style={styles.listTitleRow}>
-                      <View style={[styles.listDot, { backgroundColor: list.color }]} />
-                      <Text style={styles.listName}>{list.name}</Text>
-                    </View>
-                    <Text style={styles.listValue}>
-                      {formatCompletion(list.summary.completed, list.summary.total)}
+            <View style={styles.activitySection}>
+              <Text style={styles.activityTitle}>Recent activity</Text>
+              {activity.length === 0 ? (
+                <View style={styles.activityCard}>
+                  <Text style={styles.activityBody}>No recent synced activity yet.</Text>
+                </View>
+              ) : (
+                activity.slice(0, 6).map((event) => (
+                  <View key={event.id} style={styles.activityCard}>
+                    <Text style={styles.activityEventTitle}>{event.title}</Text>
+                    <Text style={styles.activityBody}>
+                      {event.entityType === "task" ? "Task" : "List"} {event.type} · {formatDateTime(event.createdAt)}
                     </Text>
                   </View>
-                  <Text style={styles.listMeta}>
-                    {list.summary.completed} completed, {list.summary.open} open, {list.summary.overdue} overdue
-                  </Text>
-                </View>
-              ))}
+                ))
+              )}
             </View>
           </>
         ) : null}
@@ -156,27 +155,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 20
   },
-  header: {
-    gap: 8,
-    marginTop: 8
-  },
-  kicker: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.6,
-    textTransform: "uppercase"
-  },
-  title: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
-    fontSize: 34
-  },
-  subtitle: {
-    color: theme.colors.subtleText,
-    fontSize: 15,
-    lineHeight: 22
-  },
   accountCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
@@ -198,26 +176,27 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: theme.colors.cardAccent,
-    borderRadius: 28,
-    gap: 10,
-    padding: 22
+    borderRadius: 24,
+    gap: 6,
+    padding: 16
   },
   summaryEyebrow: {
     color: theme.colors.backgroundMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 1.6,
+    letterSpacing: 1.2,
     textTransform: "uppercase"
   },
   summaryValue: {
     color: theme.colors.background,
     fontFamily: theme.fonts.serif,
-    fontSize: 46
+    fontSize: 30,
+    lineHeight: 34
   },
   summaryBody: {
     color: theme.colors.background,
-    fontSize: 15,
-    lineHeight: 22
+    fontSize: 13,
+    lineHeight: 18
   },
   grid: {
     flexDirection: "row",
@@ -243,50 +222,34 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.serif,
     fontSize: 28
   },
-  section: {
-    gap: 12
+  cardPressed: {
+    opacity: 0.86
   },
-  sectionTitle: {
+  activitySection: {
+    gap: 10
+  },
+  activityTitle: {
     color: theme.colors.text,
     fontFamily: theme.fonts.serif,
-    fontSize: 28
+    fontSize: 24
   },
-  listRow: {
+  activityCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 8,
-    padding: 16
+    gap: 4,
+    padding: 14
   },
-  listRowTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  listTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10
-  },
-  listDot: {
-    borderRadius: 999,
-    height: 12,
-    width: 12
-  },
-  listName: {
+  activityEventTitle: {
     color: theme.colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700"
   },
-  listValue: {
+  activityBody: {
     color: theme.colors.subtleText,
     fontSize: 13,
-    fontWeight: "700"
-  },
-  listMeta: {
-    color: theme.colors.subtleText,
-    fontSize: 14
+    lineHeight: 18
   },
   signOutButton: {
     alignItems: "center",

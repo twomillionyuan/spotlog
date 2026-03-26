@@ -94,23 +94,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="add"
-        options={{
-          title: "Add",
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: "plus.circle.fill",
-                android: "add_box",
-                web: "add"
-              }}
-              size={28}
-              tintColor={color}
-            />
-          )
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",

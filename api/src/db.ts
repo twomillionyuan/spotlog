@@ -23,10 +23,16 @@ export async function migrateDatabase() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       color TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
       archived_at TIMESTAMPTZ
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE task_lists
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
   `);
 
   await pool.query(`
@@ -38,6 +44,8 @@ export async function migrateDatabase() {
       notes TEXT NOT NULL DEFAULT '',
       urgency TEXT NOT NULL CHECK (urgency IN ('low', 'medium', 'high', 'critical')),
       due_date TIMESTAMPTZ,
+      attachment_url TEXT,
+      attachment_storage_key TEXT,
       completed_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
@@ -46,8 +54,23 @@ export async function migrateDatabase() {
   `);
 
   await pool.query(`
+    ALTER TABLE tasks
+    ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE tasks
+    ADD COLUMN IF NOT EXISTS attachment_storage_key TEXT;
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS task_lists_user_updated_idx
     ON task_lists (user_id, updated_at DESC);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS task_lists_user_sort_idx
+    ON task_lists (user_id, sort_order ASC, created_at ASC);
   `);
 
   await pool.query(`

@@ -1,8 +1,8 @@
 import { performance } from "node:perf_hooks";
 
-const baseUrl = process.env.SPOTLOG_BASE_URL ?? "https://ecb8e1cf30.apps.osaas.io";
-const email = process.env.SPOTLOG_EMAIL ?? "ebba@example.com";
-const password = process.env.SPOTLOG_PASSWORD ?? "secret12";
+const baseUrl = process.env.TASKLOG_BASE_URL ?? process.env.SPOTLOG_BASE_URL ?? "https://ecb8e1cf30.apps.osaas.io";
+const email = process.env.TASKLOG_EMAIL ?? process.env.SPOTLOG_EMAIL ?? "ebba@example.com";
+const password = process.env.TASKLOG_PASSWORD ?? process.env.SPOTLOG_PASSWORD ?? "secret12";
 const levels = [10, 50, 100];
 
 function percentile(sortedValues, target) {
@@ -87,7 +87,8 @@ async function main() {
   const token = await login();
   const scenarios = [
     { path: "/health", token: null },
-    { path: "/api/spots", token }
+    { path: "/api/lists", token },
+    { path: "/api/dashboard", token }
   ];
 
   for (const scenario of scenarios) {

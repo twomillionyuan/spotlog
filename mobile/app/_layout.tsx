@@ -1,7 +1,9 @@
+import "react-native-gesture-handler";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider } from "@/src/context/AuthContext";
 import { theme } from "@/src/theme/tokens";
@@ -30,32 +32,34 @@ function RootLayoutNav() {
   };
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={navigationTheme}>
-        <StatusBar style="dark" />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="list/[id]"
-            options={{
-              headerTintColor: theme.colors.text,
-              headerTitleStyle: {
-                color: theme.colors.text
-              }
-            }}
-          />
-          <Stack.Screen
-            name="task/edit/[id]"
-            options={{
-              headerTintColor: theme.colors.text,
-              headerTitleStyle: {
-                color: theme.colors.text
-              }
-            }}
-          />
-        </Stack>
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider value={navigationTheme}>
+          <StatusBar style="dark" />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="list/[id]"
+              options={{
+                headerTintColor: theme.colors.text,
+                headerTitleStyle: {
+                  color: theme.colors.text
+                }
+              }}
+            />
+            <Stack.Screen
+              name="task/edit/[id]"
+              options={{
+                headerTintColor: theme.colors.text,
+                headerTitleStyle: {
+                  color: theme.colors.text
+                }
+              }}
+            />
+          </Stack>
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

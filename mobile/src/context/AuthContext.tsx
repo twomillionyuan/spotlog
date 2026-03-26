@@ -10,8 +10,8 @@ import {
 import { login, register } from "@/src/lib/api";
 import type { User } from "@/src/types/api";
 
-const TOKEN_STORAGE_KEY = "taskboard.token";
-const USER_STORAGE_KEY = "taskboard.user";
+const TOKEN_STORAGE_KEY = "tasklog.token";
+const USER_STORAGE_KEY = "tasklog.user";
 
 type AuthContextValue = {
   token: string | null;

@@ -5,7 +5,7 @@ export const healthRouter = Router();
 healthRouter.get("/", (_req, res) => {
   res.status(200).json({
     ok: true,
-    service: "taskboard-api",
+    service: "tasklog-api",
     timestamp: new Date().toISOString()
   });
 });

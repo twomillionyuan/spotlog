@@ -1,11 +1,12 @@
 # MCP Notes
 
-This file records the OSC MCP calls used for SpotLog and what they proved.
+This file records the OSC MCP calls used for TaskLog and what they proved.
 
 ## Discovery
 
 - `list-service-categories`
 - `list-available-services { category: "database" }`
+- `list-available-services { category: "storage" }`
 - `get-service-schema { serviceId: "apache-couchdb" }`
 - `get-service-endpoints { serviceId: "apache-couchdb" }`
 - `list-my-services`
@@ -13,7 +14,7 @@ This file records the OSC MCP calls used for SpotLog and what they proved.
 - `list-my-domains`
 - `get-my-plan`
 
-## Existing Infrastructure Verification
+## Infrastructure Verification
 
 - `list-service-instances { serviceId: "birme-osc-postgresql" }`
 - `list-service-instances { serviceId: "minio-minio" }`
@@ -32,16 +33,6 @@ This file records the OSC MCP calls used for SpotLog and what they proved.
 - `restart-my-app { appId: "spotlogbackend" }`
 - `restart-my-app { appId: "spotlogbackend", rebuild: true }`
 
-## Catalog Service Integration
-
-- `create-service-instance { serviceId: "apache-couchdb", config: { name: "spotlogcouch", AdminPassword: "Spotlogcouch123" } }`
-- `get-instance-status { serviceId: "apache-couchdb", name: "spotlogcouch" }`
-- `describe-service-instance { serviceId: "apache-couchdb", name: "spotlogcouch" }`
-- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_URL", value: "https://ebba-spotlogcouch.apache-couchdb.auto.prod.osaas.io" }`
-- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_USER", value: "admin" }`
-- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_PASSWORD", value: "Spotlogcouch123" }`
-- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_DATABASE", value: "spotlogactivity" }`
-
 ## Config-Switch Exercise
 
 - `setup-parameter-store { name: "spotlogconfigb" }`
@@ -53,18 +44,30 @@ This file records the OSC MCP calls used for SpotLog and what they proved.
 - `delete-service-instance { serviceId: "eyevinn-app-config-svc", name: "spotlogconfigb" }`
 - `delete-service-instance { serviceId: "valkey-io-valkey", name: "spotlogconfigb" }`
 
+## Storage Integration
+
+- Existing MinIO-backed bucket reused for TaskLog image attachments.
+- `list-objects-on-bucket { bucketName: "spotlog-media", recursive: true }`
+- Result: tool failed with `Failed to get Minio instance`, even though attachment upload and display work through the application.
+
+## Catalog Service Integration
+
+- `create-service-instance { serviceId: "apache-couchdb", config: { name: "spotlogcouch", AdminPassword: "Spotlogcouch123" } }`
+- `get-instance-status { serviceId: "apache-couchdb", name: "spotlogcouch" }`
+- `describe-service-instance { serviceId: "apache-couchdb", name: "spotlogcouch" }`
+- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_URL", value: "https://ebba-spotlogcouch.apache-couchdb.auto.prod.osaas.io" }`
+- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_USER", value: "admin" }`
+- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_PASSWORD", value: "Spotlogcouch123" }`
+- `set-parameter { parameterStore: "spotlogconfig", key: "COUCHDB_DATABASE", value: "tasklogactivity" }`
+
 ## Backup / Restore Attempt
 
 - `create-backup { serviceId: "birme-osc-postgresql", instanceName: "spotlogdb" }`
 - Result: rejected on the `FREE` plan. This blocks the assignment's MCP-only backup/restore requirement.
 
-## Storage Inspection Attempt
-
-- `list-objects-on-bucket { bucketName: "spotlog-media", recursive: true }`
-- Result: tool failed with `Failed to get Minio instance`, even though the bucket-backed upload flow works from the app.
-
 ## Notes
 
+- The app concept changed from SpotLog to TaskLog, but the same OSC stack is exercised: Postgres, bucket storage, parameter store, managed app, domain, and one catalog service.
 - `setup-parameter-store` timed out for `spotlogconfigb`, but the service instances were actually created. The timeout is itself a useful DX finding.
 - `apache-couchdb` has no OpenAPI spec in OSC today, so integration required direct HTTP usage instead of `call-service-endpoint`.
 - `restart-my-app` with `rebuild: true` was required after the runner reused a broken dependency cache. After the root build script and lockfile were fixed, normal restarts were sufficient again.

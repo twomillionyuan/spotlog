@@ -1,5 +1,5 @@
 {
-  "name": "spotlog",
+  "name": "tasklog",
   "private": true,
   "workspaces": [
     "api"

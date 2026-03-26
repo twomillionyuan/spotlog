@@ -1,24 +1,34 @@
 import { apiUrl } from "./config";
-import type { AuthResponse, Dashboard, Task, TaskList, TaskUrgency } from "../types/api";
+import type { ActivityEvent, AuthResponse, Dashboard, Task, TaskList, TaskUrgency } from "../types/api";
 
 type ApiOptions = {
   token?: string | null;
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  isFormData?: boolean;
 };
 
 async function request<T>(path: string, options: ApiOptions = {}) {
   const response = await fetch(`${apiUrl}${path}`, {
     method: options.method ?? "GET",
     headers: {
-      "Content-Type": "application/json",
       ...(options.token
         ? {
             Authorization: `Bearer ${options.token}`
           }
-        : {})
+        : {}),
+      ...(options.isFormData
+        ? {}
+        : {
+            "Content-Type": "application/json"
+          })
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    body:
+      options.body === undefined
+        ? undefined
+        : options.isFormData
+          ? (options.body as BodyInit)
+          : JSON.stringify(options.body)
   });
 
   if (response.status === 204) {
@@ -54,6 +64,14 @@ export function getDashboard(token: string) {
   });
 }
 
+export async function getActivity(token: string) {
+  const response = await request<{ activity: ActivityEvent[] }>("/api/activity", {
+    token
+  });
+
+  return response.activity;
+}
+
 export async function getLists(token: string) {
   const response = await request<{ lists: TaskList[] }>("/api/lists", {
     token
@@ -80,6 +98,18 @@ export function createList(
     method: "POST",
     body: payload
   });
+}
+
+export async function reorderLists(token: string, listIds: string[]) {
+  const response = await request<{ lists: TaskList[] }>("/api/lists/reorder", {
+    token,
+    method: "POST",
+    body: {
+      listIds
+    }
+  });
+
+  return response.lists;
 }
 
 export function updateList(
@@ -145,6 +175,33 @@ export function updateTask(
 
 export function deleteTask(token: string, taskId: string) {
   return request<null>(`/api/tasks/${taskId}`, {
+    token,
+    method: "DELETE"
+  });
+}
+
+export function uploadTaskAttachment(token: string, taskId: string, file: {
+  uri: string;
+  mimeType: string;
+  fileName: string;
+}) {
+  const formData = new FormData();
+  formData.append("image", {
+    uri: file.uri,
+    type: file.mimeType,
+    name: file.fileName
+  } as unknown as Blob);
+
+  return request<Task>(`/api/tasks/${taskId}/attachment`, {
+    token,
+    method: "POST",
+    body: formData,
+    isFormData: true
+  });
+}
+
+export function deleteTaskAttachment(token: string, taskId: string) {
+  return request<Task>(`/api/tasks/${taskId}/attachment`, {
     token,
     method: "DELETE"
   });

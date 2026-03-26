@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TaskCard } from "@/src/components/TaskCard";
 import { useAuth } from "@/src/context/AuthContext";
-import { deleteList, getList, updateTask } from "@/src/lib/api";
+import { deleteList, getList } from "@/src/lib/api";
 import { formatCompletion } from "@/src/lib/format";
 import { theme } from "@/src/theme/tokens";
 import type { TaskList } from "@/src/types/api";
@@ -46,23 +46,6 @@ export default function ListDetailScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
-    }
-  }
-
-  async function handleToggle(taskId: string, nextCompleted: boolean) {
-    if (!token) {
-      return;
-    }
-
-    setBusy(true);
-
-    try {
-      await updateTask(token, taskId, {
-        completed: nextCompleted
-      });
-      await load();
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -156,7 +139,6 @@ export default function ListDetailScreen() {
                         params: { id: task.id }
                       } as never
                     }
-                    onToggle={(nextCompleted) => handleToggle(task.id, nextCompleted)}
                     task={task}
                   />
                 ))
@@ -249,7 +231,7 @@ const styles = StyleSheet.create({
   },
   archiveButton: {
     alignItems: "center",
-    backgroundColor: "#A04B41",
+    backgroundColor: theme.colors.danger,
     borderRadius: 18,
     paddingVertical: 15
   },

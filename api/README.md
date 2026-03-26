@@ -1,23 +1,42 @@
-# SpotLog API
+# TaskLog API
 
-## Scripts
+Node.js REST API for the TaskLog mobile app.
 
-- `npm run dev` starts the API in watch mode
-- `npm run build` compiles TypeScript
-- `npm run start` runs the API through `tsx`
+## Endpoints
 
-## Runtime Behavior
+- `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /api/dashboard`
+- `GET /api/activity`
+- `GET /api/lists`
+- `POST /api/lists`
+- `POST /api/lists/reorder`
+- `GET /api/lists/:id`
+- `PATCH /api/lists/:id`
+- `DELETE /api/lists/:id`
+- `POST /api/tasks`
+- `GET /api/tasks/:id`
+- `PATCH /api/tasks/:id`
+- `DELETE /api/tasks/:id`
+- `POST /api/tasks/:id/attachment`
+- `DELETE /api/tasks/:id/attachment`
 
-- Must listen on `process.env.PORT`
-- Defaults to port `8080`
-- Exposes:
-  - `GET /health`
-  - `POST /auth/register`
-  - `POST /auth/login`
-  - `GET /api/spots`
-  - `POST /api/spots`
-  - `GET /api/spots/:id`
-  - `PATCH /api/spots/:id`
-  - `DELETE /api/spots/:id`
-  - `POST /api/uploads`
-  - `GET /api/activity`
+## Runtime Requirements
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- Optional storage config:
+  - `S3_ENDPOINT_URL`
+  - `S3_ACCESS_KEY_ID`
+  - `S3_SECRET_ACCESS_KEY`
+  - `S3_BUCKET_NAME`
+  - `S3_REGION`
+- Optional catalog-service config:
+  - `COUCHDB_URL`
+  - `COUCHDB_USER`
+  - `COUCHDB_PASSWORD`
+  - `COUCHDB_DATABASE`
+
+If storage is configured, TaskLog supports task image attachments stored in OSC MinIO.  
+If CouchDB is configured, TaskLog exposes a synced activity feed through `/api/activity`.

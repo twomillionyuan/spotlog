@@ -82,7 +82,7 @@ export function dueDateFromPreset(preset: DuePreset, customValue?: string | null
   }
 
   if (preset === "custom") {
-    return customValue ?? null;
+    return specificDateToIso(customValue ?? null);
   }
 
   const date = new Date();
@@ -130,4 +130,53 @@ export function presetFromDueDate(value: string | null): DuePreset {
     default:
       return "custom";
   }
+}
+
+export function specificDateToIso(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const [yearText, monthText, dayText] = trimmed.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day, 17, 0, 0, 0);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+export function specificDateInputValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
 }

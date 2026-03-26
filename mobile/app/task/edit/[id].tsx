@@ -1,11 +1,19 @@
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useNavigation, router } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { deleteTask, getLists, getTask, updateTask } from "@/src/lib/api";
-import { type DuePreset, dueDateFromPreset, formatDateTime, presetFromDueDate } from "@/src/lib/format";
+import { deleteTask, deleteTaskAttachment, getLists, getTask, updateTask, uploadTaskAttachment } from "@/src/lib/api";
+import {
+  type DuePreset,
+  dueDateFromPreset,
+  formatDateTime,
+  presetFromDueDate,
+  specificDateInputValue,
+  specificDateToIso
+} from "@/src/lib/format";
 import { theme } from "@/src/theme/tokens";
 import type { Task, TaskList, TaskUrgency } from "@/src/types/api";
 
@@ -15,7 +23,8 @@ const dueOptions: Array<{ key: DuePreset; label: string }> = [
   { key: "today", label: "Today" },
   { key: "tomorrow", label: "Tomorrow" },
   { key: "this-week", label: "3 days" },
-  { key: "next-week", label: "Next week" }
+  { key: "next-week", label: "Next week" },
+  { key: "custom", label: "Specific date" }
 ];
 
 export default function EditTaskScreen() {
@@ -29,10 +38,11 @@ export default function EditTaskScreen() {
   const [selectedListId, setSelectedListId] = useState("");
   const [urgency, setUrgency] = useState<TaskUrgency>("medium");
   const [duePreset, setDuePreset] = useState<DuePreset>("none");
-  const [customDueDate, setCustomDueDate] = useState<string | null>(null);
+  const [customDueDate, setCustomDueDate] = useState("");
   const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -53,7 +63,7 @@ export default function EditTaskScreen() {
       setUrgency(nextTask.urgency);
       setCompleted(nextTask.completed);
       setDuePreset(presetFromDueDate(nextTask.dueDate));
-      setCustomDueDate(nextTask.dueDate);
+      setCustomDueDate(specificDateInputValue(nextTask.dueDate));
       navigation.setOptions({
         title: nextTask.title
       });
@@ -67,6 +77,11 @@ export default function EditTaskScreen() {
 
   async function handleSave() {
     if (!token || !id || title.trim().length === 0) {
+      return;
+    }
+
+    if (duePreset === "custom" && !specificDateToIso(customDueDate)) {
+      setError("Enter a valid specific date in YYYY-MM-DD format.");
       return;
     }
 
@@ -106,6 +121,75 @@ export default function EditTaskScreen() {
       router.replace("/(tabs)/lists" as never);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePickImage(source: "camera" | "library") {
+    if (!token || !id) {
+      return;
+    }
+
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      setError(source === "camera" ? "Camera permission is required." : "Photo library permission is required.");
+      return;
+    }
+
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            mediaTypes: ["images"],
+            quality: 0.8
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            allowsEditing: true,
+            mediaTypes: ["images"],
+            quality: 0.8
+          });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    setUploadingAttachment(true);
+    setError(null);
+
+    try {
+      const asset = result.assets[0];
+      const updated = await uploadTaskAttachment(token, id, {
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? "image/jpeg",
+        fileName: asset.fileName ?? `task-${id}.jpg`
+      });
+
+      setTask(updated);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not upload image");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function handleRemoveAttachment() {
+    if (!token || !id) {
+      return;
+    }
+
+    setUploadingAttachment(true);
+    setError(null);
+
+    try {
+      const updated = await deleteTaskAttachment(token, id);
+      setTask(updated);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not remove image");
+    } finally {
+      setUploadingAttachment(false);
     }
   }
 
@@ -215,6 +299,17 @@ export default function EditTaskScreen() {
                   </Pressable>
                 ))}
               </View>
+              {duePreset === "custom" ? (
+                <TextInput
+                  autoCapitalize="none"
+                  keyboardType="numbers-and-punctuation"
+                  onChangeText={setCustomDueDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.colors.mutedText}
+                  style={styles.input}
+                  value={customDueDate}
+                />
+              ) : null}
 
               <View style={styles.switchRow}>
                 <View>
@@ -224,6 +319,42 @@ export default function EditTaskScreen() {
                   </Text>
                 </View>
                 <Switch onValueChange={setCompleted} value={completed} />
+              </View>
+
+              <View style={styles.attachmentSection}>
+                <Text style={styles.label}>Attachment</Text>
+                {task.attachmentUrl ? (
+                  <Image source={{ uri: task.attachmentUrl }} style={styles.attachmentPreview} />
+                ) : (
+                  <View style={styles.attachmentEmpty}>
+                    <Text style={styles.helperText}>Add an image for this task.</Text>
+                  </View>
+                )}
+                <View style={styles.attachmentActions}>
+                  <Pressable
+                    disabled={uploadingAttachment}
+                    onPress={() => handlePickImage("camera")}
+                    style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                  >
+                    <Text style={styles.filterChipLabel}>Camera</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={uploadingAttachment}
+                    onPress={() => handlePickImage("library")}
+                    style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                  >
+                    <Text style={styles.filterChipLabel}>Library</Text>
+                  </Pressable>
+                  {task.attachmentUrl ? (
+                    <Pressable
+                      disabled={uploadingAttachment}
+                      onPress={handleRemoveAttachment}
+                      style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                    >
+                      <Text style={styles.filterChipLabel}>Remove</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             </View>
 
@@ -337,6 +468,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8
   },
+  attachmentSection: {
+    gap: 10,
+    marginTop: 4
+  },
+  attachmentPreview: {
+    borderRadius: 20,
+    height: 220,
+    width: "100%"
+  },
+  attachmentEmpty: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: 20,
+    justifyContent: "center",
+    minHeight: 120,
+    padding: 16
+  },
+  attachmentActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
   primaryButton: {
     alignItems: "center",
     backgroundColor: theme.colors.text,
@@ -350,7 +503,7 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     alignItems: "center",
-    backgroundColor: "#A04B41",
+    backgroundColor: theme.colors.danger,
     borderRadius: 18,
     paddingVertical: 16
   },
@@ -363,7 +516,7 @@ const styles = StyleSheet.create({
     opacity: 0.6
   },
   error: {
-    color: "#A04B41",
+    color: theme.colors.danger,
     fontSize: 14,
     lineHeight: 20
   },

@@ -1,43 +1,26 @@
 import { Link } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { formatDueDate, urgencyLabel } from "@/src/lib/format";
-import { theme } from "@/src/theme/tokens";
+import { formatDueDate } from "@/src/lib/format";
+import { theme, urgencyCardPalette } from "@/src/theme/tokens";
 import type { Task, TaskUrgency } from "@/src/types/api";
-
-const urgencyColors: Record<TaskUrgency, string> = {
-  low: "#7D9773",
-  medium: "#C3922E",
-  high: "#D46A4F",
-  critical: "#A94442"
-};
 
 type TaskCardProps = {
   task: Task;
   href?: Href;
   listName?: string;
-  onToggle?: (nextCompleted: boolean) => void;
 };
 
 function TaskCardBody({ task, listName }: { task: Task; listName?: string }) {
   return (
     <View style={styles.body}>
-      <View style={styles.row}>
-        <Text numberOfLines={2} style={[styles.title, task.completed && styles.completedTitle]}>
-          {task.title}
-        </Text>
-        <View
-          style={[
-            styles.badge,
-            {
-              backgroundColor: urgencyColors[task.urgency]
-            }
-          ]}
-        >
-          <Text style={styles.badgeLabel}>{urgencyLabel(task.urgency)}</Text>
-        </View>
-      </View>
+      <Text numberOfLines={2} style={[styles.title, task.completed && styles.completedTitle]}>
+        {task.title}
+      </Text>
+      {task.attachmentUrl ? (
+        <Image source={{ uri: task.attachmentUrl }} style={styles.attachmentPreview} />
+      ) : null}
       {task.notes ? (
         <Text numberOfLines={2} style={styles.notes}>
           {task.notes}
@@ -52,17 +35,20 @@ function TaskCardBody({ task, listName }: { task: Task; listName?: string }) {
   );
 }
 
-export function TaskCard({ task, href, listName, onToggle }: TaskCardProps) {
+export function TaskCard({ task, href, listName }: TaskCardProps) {
+  const cardColors = urgencyCardPalette[task.urgency];
+
   return (
-    <View style={styles.card}>
-      <Pressable
-        onPress={() => onToggle?.(!task.completed)}
-        style={[styles.toggle, task.completed && styles.toggleCompleted]}
-      >
-        <Text style={[styles.toggleLabel, task.completed && styles.toggleLabelCompleted]}>
-          {task.completed ? "Done" : "Open"}
-        </Text>
-      </Pressable>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: cardColors.background,
+          borderColor: cardColors.border
+        },
+        task.completed && styles.completedCard
+      ]}
+    >
       {href ? (
         <Link href={href} asChild>
           <Pressable style={styles.linkArea}>
@@ -80,46 +66,18 @@ export function TaskCard({ task, href, listName, onToggle }: TaskCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: "stretch",
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
     borderRadius: 24,
     borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
     padding: 14
   },
-  toggle: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: theme.colors.surfaceMuted,
-    borderRadius: 999,
-    minWidth: 58,
-    paddingHorizontal: 10,
-    paddingVertical: 10
-  },
-  toggleCompleted: {
-    backgroundColor: theme.colors.cardAccent
-  },
-  toggleLabel: {
-    color: theme.colors.subtleText,
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  toggleLabelCompleted: {
-    color: theme.colors.background
+  completedCard: {
+    opacity: 0.78
   },
   linkArea: {
     flex: 1
   },
   body: {
     gap: 10
-  },
-  row: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "space-between"
   },
   title: {
     color: theme.colors.text,
@@ -132,22 +90,15 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     textDecorationLine: "line-through"
   },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  badgeLabel: {
-    color: theme.colors.background,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase"
-  },
   notes: {
     color: theme.colors.subtleText,
     fontSize: 14,
     lineHeight: 20
+  },
+  attachmentPreview: {
+    borderRadius: 16,
+    height: 148,
+    width: "100%"
   },
   metaRow: {
     flexDirection: "row",

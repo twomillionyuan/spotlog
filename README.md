@@ -1,24 +1,32 @@
-# SpotLog
+# TaskLog
 
-SpotLog is a location-based photo journal mobile app built with Expo React Native and an OSC-managed backend provisioned through MCP.
+TaskLog is a private to-do list mobile app built with Expo React Native and an OSC-managed backend provisioned through MCP.
+
+The original assignment concept was `SpotLog`, a photo journal. This repo now implements the same MCP-first OSC assignment shape with a to-do list product instead:
+
+- Expo mobile app
+- OSC My App Node.js API
+- OSC PostgreSQL for users, lists, and tasks
+- OSC MinIO bucket for task image attachments
+- OSC Application Config Service for runtime config
+- OSC CouchDB catalog service for synced activity history
 
 ## Monorepo Structure
 
 - `mobile/` Expo React Native app
 - `api/` Node.js REST API
-- `docs/` architecture and MCP notes
-- `feedback-log.md` running log of OSC/MCP friction points
-- `scripts/` project utilities such as the load-test runner
+- `docs/` architecture, MCP notes, final report, and load-test results
+- `feedback-log.md` running OSC/MCP friction log
+- `scripts/` utilities such as the load-test runner
 
 ## Current Scope
 
 - Private user accounts with JWT auth
-- Postgres-backed spot storage
-- OSC MinIO-backed image upload
-- iOS-first Expo mobile client
-- Automatic mobile sync polling every 10 seconds
-- CouchDB activity log integration through OSC catalog services
-- MCP-managed deployment, diagnostics, config, and domain operations
+- Postgres-backed task lists and tasks
+- Image attachments uploaded from mobile to OSC storage through the API
+- CouchDB-backed activity feed for task/list events
+- iOS and Android Expo validation
+- MCP-managed deployment, diagnostics, config, domain, and service operations
 
 ## Local Development
 
@@ -34,7 +42,7 @@ S3_BUCKET_NAME=... \
 COUCHDB_URL=... \
 COUCHDB_USER=... \
 COUCHDB_PASSWORD=... \
-COUCHDB_DATABASE=spotlogactivity \
+COUCHDB_DATABASE=... \
 npm --prefix api run start
 ```
 

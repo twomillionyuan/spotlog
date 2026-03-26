@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+import { recordActivity } from "./activity.js";
 import { config } from "./config.js";
 import { pool } from "./db.js";
 import type {
@@ -27,7 +28,7 @@ const urgencyRanks: Record<TaskUrgency, number> = {
 const seedLists = [
   {
     name: "Work",
-    color: "#D5E6C5",
+    color: "#DCC8F5",
     tasks: [
       {
         title: "Review launch checklist",
@@ -54,7 +55,7 @@ const seedLists = [
   },
   {
     name: "Home",
-    color: "#F1D7C7",
+    color: "#F0CFE3",
     tasks: [
       {
         title: "Book dentist appointment",
@@ -74,7 +75,7 @@ const seedLists = [
   },
   {
     name: "Someday",
-    color: "#CBD6F2",
+    color: "#CFE0FF",
     tasks: [
       {
         title: "Plan summer trip budget",
@@ -107,6 +108,8 @@ function toTaskResponse(task: TaskRow): TaskResponse {
     notes: task.notes,
     urgency: task.urgency,
     dueDate: task.dueDate,
+    attachmentUrl: task.attachmentUrl,
+    attachmentStorageKey: task.attachmentStorageKey,
     completed: Boolean(task.completedAt),
     completedAt: task.completedAt,
     createdAt: task.createdAt,
@@ -171,6 +174,7 @@ function toTaskListResponse(list: TaskListRow, tasks: TaskResponse[]): TaskListR
     id: list.id,
     name: list.name,
     color: list.color,
+    sortOrder: list.sort_order,
     createdAt: list.created_at,
     updatedAt: list.updated_at,
     summary: computeTaskCounts(sortedTasks),
@@ -212,11 +216,11 @@ async function listRowsForUser(userId: string) {
   const [listsResult, tasksResult] = await Promise.all([
     pool.query<TaskListRow>(
       `
-        SELECT id, user_id, name, color, created_at, updated_at, archived_at
+        SELECT id, user_id, name, color, sort_order, created_at, updated_at, archived_at
         FROM task_lists
         WHERE user_id = $1
           AND archived_at IS NULL
-        ORDER BY updated_at DESC, created_at DESC
+        ORDER BY sort_order ASC, created_at ASC
       `,
       [userId]
     ),
@@ -228,13 +232,28 @@ async function listRowsForUser(userId: string) {
       notes: string;
       urgency: TaskUrgency;
       due_date: string | null;
+      attachment_url: string | null;
+      attachment_storage_key: string | null;
       completed_at: string | null;
       created_at: string;
       updated_at: string;
       deleted_at: string | null;
     }>(
       `
-        SELECT id, user_id, list_id, title, notes, urgency, due_date, completed_at, created_at, updated_at, deleted_at
+        SELECT
+          id,
+          user_id,
+          list_id,
+          title,
+          notes,
+          urgency,
+          due_date,
+          attachment_url,
+          attachment_storage_key,
+          completed_at,
+          created_at,
+          updated_at,
+          deleted_at
         FROM tasks
         WHERE user_id = $1
           AND deleted_at IS NULL
@@ -256,6 +275,8 @@ async function listRowsForUser(userId: string) {
         notes: row.notes,
         urgency: row.urgency,
         dueDate: row.due_date,
+        attachmentUrl: row.attachment_url,
+        attachmentStorageKey: row.attachment_storage_key,
         completedAt: row.completed_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -274,7 +295,7 @@ async function listRowsForUser(userId: string) {
 async function getListRow(userId: string, listId: string) {
   const result = await pool.query<TaskListRow>(
     `
-      SELECT id, user_id, name, color, created_at, updated_at, archived_at
+      SELECT id, user_id, name, color, sort_order, created_at, updated_at, archived_at
       FROM task_lists
       WHERE id = $1
         AND user_id = $2
@@ -292,11 +313,25 @@ async function ensureStarterList(userId: string) {
 
   await pool.query(
     `
-      INSERT INTO task_lists (id, user_id, name, color, created_at, updated_at, archived_at)
-      VALUES ($1, $2, $3, $4, $5, $5, NULL)
+      INSERT INTO task_lists (id, user_id, name, color, sort_order, created_at, updated_at, archived_at)
+      VALUES ($1, $2, $3, $4, 0, $5, $5, NULL)
     `,
-    [randomUUID(), userId, "General", "#D5E6C5", timestamp]
+    [randomUUID(), userId, "General", "#DCC8F5", timestamp]
   );
+}
+
+async function getNextListSortOrder(userId: string) {
+  const result = await pool.query<{ next_sort_order: number }>(
+    `
+      SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order
+      FROM task_lists
+      WHERE user_id = $1
+        AND archived_at IS NULL
+    `,
+    [userId]
+  );
+
+  return Number(result.rows[0]?.next_sort_order ?? 0);
 }
 
 export async function initializeStore() {
@@ -337,16 +372,16 @@ export async function initializeStore() {
     return;
   }
 
-  for (const list of seedLists) {
+  for (const [index, list] of seedLists.entries()) {
     const listId = randomUUID();
     const listTimestamp = new Date().toISOString();
 
     await pool.query(
       `
-        INSERT INTO task_lists (id, user_id, name, color, created_at, updated_at, archived_at)
-        VALUES ($1, $2, $3, $4, $5, $5, NULL)
+        INSERT INTO task_lists (id, user_id, name, color, sort_order, created_at, updated_at, archived_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $6, NULL)
       `,
-      [listId, user.id, list.name, list.color, listTimestamp]
+      [listId, user.id, list.name, list.color, index, listTimestamp]
     );
 
     for (const task of list.tasks) {
@@ -510,14 +545,23 @@ export async function createTaskList(
 ) {
   const id = randomUUID();
   const timestamp = new Date().toISOString();
+  const sortOrder = await getNextListSortOrder(userId);
 
   await pool.query(
     `
-      INSERT INTO task_lists (id, user_id, name, color, created_at, updated_at, archived_at)
-      VALUES ($1, $2, $3, $4, $5, $5, NULL)
+      INSERT INTO task_lists (id, user_id, name, color, sort_order, created_at, updated_at, archived_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $6, NULL)
     `,
-    [id, userId, input.name.trim(), input.color.trim(), timestamp]
+    [id, userId, input.name.trim(), input.color.trim(), sortOrder, timestamp]
   );
+
+  void recordActivity({
+    userId,
+    entityType: "list",
+    entityId: id,
+    title: input.name.trim(),
+    type: "created"
+  });
 
   return getTaskList(userId, id);
 }
@@ -561,7 +605,19 @@ export async function updateTaskList(
     values
   );
 
-  return getTaskList(userId, listId);
+  const updated = await getTaskList(userId, listId);
+
+  if (updated) {
+    void recordActivity({
+      userId,
+      entityType: "list",
+      entityId: listId,
+      title: updated.name,
+      type: "updated"
+    });
+  }
+
+  return updated;
 }
 
 export async function archiveTaskList(userId: string, listId: string) {
@@ -601,11 +657,60 @@ export async function archiveTaskList(userId: string, listId: string) {
     );
 
     await pool.query("COMMIT");
+
+    void recordActivity({
+      userId,
+      entityType: "list",
+      entityId: listId,
+      title: list.name,
+      type: "deleted"
+    });
+
     return list;
   } catch (error) {
     await pool.query("ROLLBACK");
     throw error;
   }
+}
+
+export async function reorderTaskLists(userId: string, orderedListIds: string[]) {
+  const existingLists = await listTaskLists(userId);
+
+  if (existingLists.length !== orderedListIds.length) {
+    throw new Error("INVALID_LIST_ORDER");
+  }
+
+  const existingIds = new Set(existingLists.map((list) => list.id));
+
+  for (const listId of orderedListIds) {
+    if (!existingIds.has(listId)) {
+      throw new Error("INVALID_LIST_ORDER");
+    }
+  }
+
+  await pool.query("BEGIN");
+
+  try {
+    for (const [index, listId] of orderedListIds.entries()) {
+      await pool.query(
+        `
+          UPDATE task_lists
+          SET sort_order = $1
+          WHERE id = $2
+            AND user_id = $3
+            AND archived_at IS NULL
+        `,
+        [index, listId, userId]
+      );
+    }
+
+    await pool.query("COMMIT");
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    throw error;
+  }
+
+  return listTaskLists(userId);
 }
 
 export async function getTask(userId: string, taskId: string) {
@@ -617,13 +722,28 @@ export async function getTask(userId: string, taskId: string) {
     notes: string;
     urgency: TaskUrgency;
     due_date: string | null;
+    attachment_url: string | null;
+    attachment_storage_key: string | null;
     completed_at: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
   }>(
     `
-      SELECT id, user_id, list_id, title, notes, urgency, due_date, completed_at, created_at, updated_at, deleted_at
+      SELECT
+        id,
+        user_id,
+        list_id,
+        title,
+        notes,
+        urgency,
+        due_date,
+        attachment_url,
+        attachment_storage_key,
+        completed_at,
+        created_at,
+        updated_at,
+        deleted_at
       FROM tasks
       WHERE id = $1
         AND user_id = $2
@@ -647,6 +767,8 @@ export async function getTask(userId: string, taskId: string) {
     notes: row.notes,
     urgency: row.urgency,
     dueDate: row.due_date,
+    attachmentUrl: row.attachment_url,
+    attachmentStorageKey: row.attachment_storage_key,
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -686,12 +808,14 @@ export async function createTask(
           notes,
           urgency,
           due_date,
+          attachment_url,
+          attachment_storage_key,
           completed_at,
           created_at,
           updated_at,
           deleted_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, $8, NULL)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL, $8, $8, NULL)
       `,
       [
         id,
@@ -720,6 +844,14 @@ export async function createTask(
     await pool.query("ROLLBACK");
     throw error;
   }
+
+  void recordActivity({
+    userId,
+    entityType: "task",
+    entityId: id,
+    title: input.title.trim(),
+    type: "created"
+  });
 
   return getTask(userId, id);
 }
@@ -753,6 +885,8 @@ export async function updateTask(
   const values: unknown[] = [];
   const updates: string[] = [];
   const nextTimestamp = new Date().toISOString();
+  const nextCompleted =
+    typeof input.completed === "boolean" ? input.completed : existing.completed;
 
   if (typeof input.title === "string") {
     values.push(input.title.trim());
@@ -829,7 +963,19 @@ export async function updateTask(
     throw error;
   }
 
-  return getTask(userId, taskId);
+  const updated = await getTask(userId, taskId);
+
+  if (updated) {
+    void recordActivity({
+      userId,
+      entityType: "task",
+      entityId: taskId,
+      title: updated.title,
+      type: nextCompleted && !existing.completed ? "completed" : "updated"
+    });
+  }
+
+  return updated;
 }
 
 export async function deleteTask(userId: string, taskId: string) {
@@ -868,11 +1014,84 @@ export async function deleteTask(userId: string, taskId: string) {
     );
 
     await pool.query("COMMIT");
+
+    void recordActivity({
+      userId,
+      entityType: "task",
+      entityId: taskId,
+      title: existing.title,
+      type: "deleted"
+    });
+
     return existing;
   } catch (error) {
     await pool.query("ROLLBACK");
     throw error;
   }
+}
+
+export async function setTaskAttachment(
+  userId: string,
+  taskId: string,
+  attachment: {
+    attachmentUrl: string | null;
+    attachmentStorageKey: string | null;
+  }
+) {
+  const existing = await getTask(userId, taskId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const timestamp = new Date().toISOString();
+
+  await pool.query("BEGIN");
+
+  try {
+    await pool.query(
+      `
+        UPDATE tasks
+        SET attachment_url = $1,
+            attachment_storage_key = $2,
+            updated_at = $3
+        WHERE id = $4
+          AND user_id = $5
+          AND deleted_at IS NULL
+      `,
+      [attachment.attachmentUrl, attachment.attachmentStorageKey, timestamp, taskId, userId]
+    );
+
+    await pool.query(
+      `
+        UPDATE task_lists
+        SET updated_at = $1
+        WHERE id = $2
+          AND user_id = $3
+          AND archived_at IS NULL
+      `,
+      [timestamp, existing.listId, userId]
+    );
+
+    await pool.query("COMMIT");
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    throw error;
+  }
+
+  const updated = await getTask(userId, taskId);
+
+  if (updated) {
+    void recordActivity({
+      userId,
+      entityType: "task",
+      entityId: taskId,
+      title: updated.title,
+      type: attachment.attachmentUrl ? "attached" : "updated"
+    });
+  }
+
+  return updated;
 }
 
 function isSameUtcDate(dateValue: string, current: Date) {

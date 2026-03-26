@@ -6,9 +6,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TaskCard } from "@/src/components/TaskCard";
 import { useAuth } from "@/src/context/AuthContext";
-import { getDashboard, getLists, updateTask } from "@/src/lib/api";
+import { getDashboard, getLists } from "@/src/lib/api";
 import { formatCompletion } from "@/src/lib/format";
-import { theme } from "@/src/theme/tokens";
+import { statCardPalette, theme } from "@/src/theme/tokens";
 import type { Dashboard, TaskList } from "@/src/types/api";
 
 export default function FeedScreen() {
@@ -50,18 +50,6 @@ export default function FeedScreen() {
     }
   }
 
-  async function handleToggle(taskId: string, nextCompleted: boolean) {
-    if (!token) {
-      return;
-    }
-
-    await updateTask(token, taskId, {
-      completed: nextCompleted
-    });
-
-    await load();
-  }
-
   useEffect(() => {
     if (!isFocused) {
       return;
@@ -71,6 +59,14 @@ export default function FeedScreen() {
   }, [token, isFocused]);
 
   const listNameById = new Map(lists.map((list) => [list.id, list.name]));
+  const metricCards = dashboard
+    ? [
+        { label: "Open", value: dashboard.summary.openTasks, hint: "tasks" },
+        { label: "Overdue", value: dashboard.summary.overdueTasks, hint: "late" },
+        { label: "Due today", value: dashboard.summary.dueTodayTasks, hint: "today" },
+        { label: "Lists", value: dashboard.summary.listCount, hint: "active" }
+      ]
+    : [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -78,14 +74,6 @@ export default function FeedScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
       >
-        <View style={styles.header}>
-          <Text style={styles.kicker}>Overview</Text>
-          <Text style={styles.title}>What needs attention now</Text>
-          <Text style={styles.subtitle}>
-            Rank tasks by urgency and due date, then keep the quick wins and late items visible.
-          </Text>
-        </View>
-
         {loading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={theme.colors.accent} />
@@ -105,39 +93,44 @@ export default function FeedScreen() {
 
         {!loading && !error && dashboard ? (
           <>
-            <View style={styles.heroCard}>
-              <Text style={styles.heroEyebrow}>Completion rate</Text>
-              <Text style={styles.heroValue}>{dashboard.summary.completionRate}%</Text>
-              <Text style={styles.heroBody}>
-                {dashboard.summary.completedTasks} completed out of {dashboard.summary.totalTasks} total tasks.
-              </Text>
-            </View>
-
             <View style={styles.metricGrid}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Open</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.openTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Overdue</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.overdueTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Due today</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.dueTodayTasks}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Lists</Text>
-                <Text style={styles.metricValue}>{dashboard.summary.listCount}</Text>
-              </View>
+              {metricCards.map((card, index) => {
+                const cardTheme = statCardPalette[index];
+
+                return (
+                  <Link href={"/(tabs)/lists" as never} key={card.label} asChild>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.metricCard,
+                        cardTheme,
+                        pressed && styles.cardPressed
+                      ]}
+                    >
+                      <View style={styles.metricCardHeader}>
+                        <View
+                          style={[
+                            styles.metricDot,
+                            {
+                              backgroundColor: cardTheme.accentColor
+                            }
+                          ]}
+                        />
+                        <Text style={styles.metricLabel}>{card.label}</Text>
+                      </View>
+                      <Text style={styles.metricValue}>{card.value}</Text>
+                      <Text style={styles.metricHint}>{card.hint}</Text>
+                    </Pressable>
+                  </Link>
+                );
+              })}
             </View>
 
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Urgent queue</Text>
-                <Link href="/(tabs)/add" asChild>
+                <Link href={"/(tabs)/lists" as never} asChild>
                   <Pressable>
-                    <Text style={styles.sectionLink}>Add task</Text>
+                    <Text style={styles.sectionLink}>See all in lists</Text>
                   </Pressable>
                 </Link>
               </View>
@@ -146,7 +139,7 @@ export default function FeedScreen() {
                   <Text style={styles.emptyText}>Nothing urgent right now.</Text>
                 </View>
               ) : (
-                dashboard.urgentTasks.map((task) => (
+                dashboard.urgentTasks.slice(0, 3).map((task) => (
                   <TaskCard
                     key={task.id}
                     href={
@@ -156,31 +149,6 @@ export default function FeedScreen() {
                       } as never
                     }
                     listName={listNameById.get(task.listId)}
-                    onToggle={(nextCompleted) => handleToggle(task.id, nextCompleted)}
-                    task={task}
-                  />
-                ))
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent completions</Text>
-              {dashboard.recentCompletions.length === 0 ? (
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyText}>Complete a task and it will show up here.</Text>
-                </View>
-              ) : (
-                dashboard.recentCompletions.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    href={
-                      {
-                        pathname: "/task/edit/[id]",
-                        params: { id: task.id }
-                      } as never
-                    }
-                    listName={listNameById.get(task.listId)}
-                    onToggle={(nextCompleted) => handleToggle(task.id, nextCompleted)}
                     task={task}
                   />
                 ))
@@ -232,73 +200,45 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 20
   },
-  header: {
-    gap: 8,
-    marginTop: 8
-  },
-  kicker: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.6,
-    textTransform: "uppercase"
-  },
-  title: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
-    fontSize: 34
-  },
-  subtitle: {
-    color: theme.colors.subtleText,
-    fontSize: 15,
-    lineHeight: 22
-  },
-  heroCard: {
-    backgroundColor: theme.colors.cardAccent,
-    borderRadius: 28,
-    gap: 10,
-    padding: 22
-  },
-  heroEyebrow: {
-    color: theme.colors.backgroundMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.6,
-    textTransform: "uppercase"
-  },
-  heroValue: {
-    color: theme.colors.background,
-    fontFamily: theme.fonts.serif,
-    fontSize: 44
-  },
-  heroBody: {
-    color: theme.colors.background,
-    fontSize: 15,
-    lineHeight: 22
-  },
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12
   },
   metricCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     flexBasis: "47%",
-    gap: 8,
+    gap: 10,
+    minHeight: 126,
     padding: 16
+  },
+  metricCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
+  },
+  metricDot: {
+    borderRadius: 999,
+    height: 10,
+    width: 10
   },
   metricLabel: {
     color: theme.colors.subtleText,
     fontSize: 13,
-    fontWeight: "600"
+    fontWeight: "700"
   },
   metricValue: {
     color: theme.colors.text,
     fontFamily: theme.fonts.serif,
-    fontSize: 30
+    fontSize: 34,
+    lineHeight: 40
+  },
+  metricHint: {
+    color: theme.colors.mutedText,
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase"
   },
   section: {
     gap: 12
@@ -315,7 +255,7 @@ const styles = StyleSheet.create({
   },
   sectionLink: {
     color: theme.colors.accent,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700"
   },
   emptyCard: {
@@ -388,5 +328,8 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
     fontSize: 14,
     fontWeight: "700"
+  },
+  cardPressed: {
+    opacity: 0.86
   }
 });

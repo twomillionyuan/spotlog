@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   error: {
-    color: "#A04B41",
+    color: theme.colors.danger,
     fontSize: 14,
     lineHeight: 20
   },
