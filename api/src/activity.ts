@@ -51,7 +51,7 @@ async function couchRequest(path: string, init?: RequestInit) {
 
 export async function ensureActivityStore() {
   if (!getActivityConfig()) {
-    console.log("TaskLog startup: activity log disabled");
+    console.log("TaskSnap startup: activity log disabled");
     return;
   }
 

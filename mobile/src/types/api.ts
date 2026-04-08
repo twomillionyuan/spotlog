@@ -18,7 +18,10 @@ export type Task = {
   notes: string;
   urgency: TaskUrgency;
   dueDate: string | null;
-  attachmentUrl: string | null;
+  beforePhotoUrl: string | null;
+  beforePhotoStorageKey?: string | null;
+  afterPhotoUrl: string | null;
+  afterPhotoStorageKey?: string | null;
   completed: boolean;
   completedAt: string | null;
   createdAt: string;
@@ -36,6 +39,8 @@ export type TaskList = {
   id: string;
   name: string;
   color: string;
+  attachmentUrl: string | null;
+  attachmentStorageKey?: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

@@ -1,11 +1,20 @@
 import { performance } from "node:perf_hooks";
 
 const baseUrl =
+  process.env.TASKSNAP_BASE_URL ??
   process.env.TASKLOG_BASE_URL ??
   process.env.SPOTLOG_BASE_URL ??
   "https://tasklogbackend.apps.osaas.io";
-const email = process.env.TASKLOG_EMAIL ?? process.env.SPOTLOG_EMAIL ?? "ebba@example.com";
-const password = process.env.TASKLOG_PASSWORD ?? process.env.SPOTLOG_PASSWORD ?? "secret12";
+const email =
+  process.env.TASKSNAP_EMAIL ??
+  process.env.TASKLOG_EMAIL ??
+  process.env.SPOTLOG_EMAIL ??
+  "ebba@example.com";
+const password =
+  process.env.TASKSNAP_PASSWORD ??
+  process.env.TASKLOG_PASSWORD ??
+  process.env.SPOTLOG_PASSWORD ??
+  "secret12";
 const levels = [10, 50, 100];
 
 function percentile(sortedValues, target) {

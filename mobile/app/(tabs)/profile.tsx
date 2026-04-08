@@ -165,14 +165,14 @@ const styles = StyleSheet.create({
   },
   accountLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.bold,
     fontSize: 13,
-    fontWeight: "700",
     textTransform: "uppercase"
   },
   accountValue: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
     fontSize: 18,
-    fontWeight: "700"
   },
   summaryCard: {
     backgroundColor: theme.colors.cardAccent,
@@ -182,19 +182,20 @@ const styles = StyleSheet.create({
   },
   summaryEyebrow: {
     color: theme.colors.backgroundMuted,
+    fontFamily: theme.fonts.bold,
     fontSize: 11,
-    fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase"
   },
   summaryValue: {
     color: theme.colors.background,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 30,
     lineHeight: 34
   },
   summaryBody: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.regular,
     fontSize: 13,
     lineHeight: 18
   },
@@ -214,12 +215,12 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "600"
   },
   metricValue: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 28
   },
   cardPressed: {
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 24
   },
   activityCard: {
@@ -243,11 +244,12 @@ const styles = StyleSheet.create({
   },
   activityEventTitle: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
     fontSize: 15,
-    fontWeight: "700"
   },
   activityBody: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 13,
     lineHeight: 18
   },
@@ -259,8 +261,8 @@ const styles = StyleSheet.create({
   },
   signOutLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   stateCard: {
     alignItems: "center",
@@ -273,11 +275,12 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 22
   },
   stateText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"

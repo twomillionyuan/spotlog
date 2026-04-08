@@ -1,5 +1,5 @@
 {
-  "name": "tasklog",
+  "name": "tasksnap",
   "private": true,
   "workspaces": [
     "api"

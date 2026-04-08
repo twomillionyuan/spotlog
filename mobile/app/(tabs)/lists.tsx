@@ -1,8 +1,10 @@
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Link } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -17,7 +19,13 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 
 import { TaskCard } from "@/src/components/TaskCard";
-import { createList, createTask, getLists, reorderLists } from "@/src/lib/api";
+import {
+  createList,
+  createTask,
+  getLists,
+  reorderLists,
+  uploadTaskPhoto
+} from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
 import {
   dueDateFromPreset,
@@ -43,6 +51,8 @@ const dueOptions: Array<{ key: DuePreset; label: string }> = [
 export default function ListsScreen() {
   const { token } = useAuth();
   const isFocused = useIsFocused();
+  const navigation = useNavigation();
+  const router = useRouter();
   const [lists, setLists] = useState<TaskList[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newListName, setNewListName] = useState("");
@@ -53,6 +63,11 @@ export default function ListsScreen() {
   const [newTaskUrgency, setNewTaskUrgency] = useState<TaskUrgency>("medium");
   const [newTaskDuePreset, setNewTaskDuePreset] = useState<DuePreset>("today");
   const [newTaskSpecificDate, setNewTaskSpecificDate] = useState("");
+  const [newTaskBeforePhoto, setNewTaskBeforePhoto] = useState<{
+    uri: string;
+    mimeType: string;
+    fileName: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingList, setSavingList] = useState(false);
@@ -114,6 +129,7 @@ export default function ListsScreen() {
     setNewTaskUrgency("medium");
     setNewTaskDuePreset("today");
     setNewTaskSpecificDate("");
+    setNewTaskBeforePhoto(null);
     setError(null);
   }
 
@@ -127,11 +143,16 @@ export default function ListsScreen() {
       return;
     }
 
+    if (!newTaskBeforePhoto) {
+      setError("Add a before photo when creating a task.");
+      return;
+    }
+
     setSavingTask(true);
     setError(null);
 
     try {
-      await createTask(token, {
+      const created = await createTask(token, {
         listId,
         title: newTaskTitle,
         notes: newTaskNotes,
@@ -139,15 +160,55 @@ export default function ListsScreen() {
         dueDate: dueDateFromPreset(newTaskDuePreset, newTaskSpecificDate)
       });
 
+      await uploadTaskPhoto(token, created.id, "before", newTaskBeforePhoto);
+
       setAddingTaskListId(null);
       setNewTaskTitle("");
       setNewTaskNotes("");
+      setNewTaskBeforePhoto(null);
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not create task");
     } finally {
       setSavingTask(false);
     }
+  }
+
+  async function pickTaskImage(source: "camera" | "library") {
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      setError(source === "camera" ? "Camera permission is required." : "Photo library permission is required.");
+      return;
+    }
+
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            mediaTypes: ["images"],
+            quality: 0.8
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            allowsEditing: true,
+            mediaTypes: ["images"],
+            quality: 0.8
+          });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setNewTaskBeforePhoto({
+      uri: asset.uri,
+      mimeType: asset.mimeType ?? "image/jpeg",
+      fileName: asset.fileName ?? `tasksnap-${Date.now()}.jpg`
+    });
+    setError(null);
   }
 
   async function handleReorder(nextLists: TaskList[]) {
@@ -187,6 +248,24 @@ export default function ListsScreen() {
     void load();
   }, [token, isFocused]);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={() => setShowCreateForm((current) => !current)}
+          style={({ pressed }) => [
+            styles.headerCreateButton,
+            pressed && styles.buttonPressed
+          ]}
+        >
+          <Text style={styles.headerCreateButtonLabel}>
+            {showCreateForm ? "Close" : "Create list"}
+          </Text>
+        </Pressable>
+      )
+    });
+  }, [navigation, showCreateForm]);
+
   const recentCompletions = lists
     .flatMap((list) =>
       list.tasks
@@ -205,7 +284,21 @@ export default function ListsScreen() {
 
     return (
       <ScaleDecorator>
-        <View style={[styles.listCard, isActive && styles.activeListCard]}>
+        <Pressable
+          accessibilityHint={`Open ${item.name} list`}
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: "/list/[id]",
+              params: { id: item.id }
+            })
+          }
+          style={({ pressed }) => [
+            styles.listCard,
+            isActive && styles.activeListCard,
+            pressed && styles.buttonPressed
+          ]}
+        >
           <View style={styles.listHeader}>
             <View style={styles.headerLeft}>
               <Pressable
@@ -222,91 +315,65 @@ export default function ListsScreen() {
               >
                 <Text style={styles.dragHandleIcon}>≡</Text>
               </Pressable>
-              <Link
-                href={
-                  {
-                    pathname: "/list/[id]",
-                    params: { id: item.id }
-                  } as never
-                }
-                asChild
-              >
-                <Pressable
-                  style={({ pressed }) => [styles.listHeading, pressed && styles.buttonPressed]}
-                >
-                  <View style={[styles.listSwatch, { backgroundColor: item.color }]} />
-                  <Text style={styles.listName}>{item.name}</Text>
-                </Pressable>
-              </Link>
+              <View style={styles.listHeading}>
+                <View style={[styles.listSwatch, { backgroundColor: item.color }]} />
+                <Text style={styles.listName}>{item.name}</Text>
+              </View>
             </View>
             <View style={styles.headerActions}>
               <Text style={styles.listMeta}>
                 {formatCompletion(item.summary.completed, item.summary.total)}
               </Text>
-              <View style={styles.actionRow}>
-                <Pressable
-                  onPress={() => openTaskComposer(item.id)}
-                  style={({ pressed }) => [
-                    styles.inlineActionButton,
-                    pressed && styles.buttonPressed
-                  ]}
-                >
-                  <Text style={styles.inlineActionLabel}>
-                    {isAddingTask ? "Close" : "Add task"}
-                  </Text>
-                </Pressable>
-              </View>
+              <Pressable
+                onPress={() => openTaskComposer(item.id)}
+                style={({ pressed }) => [
+                  styles.inlineActionButton,
+                  pressed && styles.buttonPressed
+                ]}
+              >
+                <Text style={styles.inlineActionLabel}>
+                  {isAddingTask ? "Close" : "Add task"}
+                </Text>
+              </Pressable>
             </View>
           </View>
 
-          <Link
-            href={
-              {
-                pathname: "/list/[id]",
-                params: { id: item.id }
-              } as never
-            }
-            asChild
-          >
-            <Pressable style={({ pressed }) => [styles.listBody, pressed && styles.buttonPressed]}>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.max(
-                        8,
-                        item.summary.total === 0
-                          ? 8
-                          : (item.summary.completed / item.summary.total) * 100
-                      )}%`,
-                      backgroundColor: item.color
-                    }
-                  ]}
-                />
-              </View>
+          <View style={styles.listBody}>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.max(
+                      8,
+                      item.summary.total === 0
+                        ? 8
+                        : (item.summary.completed / item.summary.total) * 100
+                    )}%`,
+                    backgroundColor: item.color
+                  }
+                ]}
+              />
+            </View>
 
-              <View style={styles.metaRow}>
-                <Text style={styles.metaText}>{item.summary.open} open</Text>
-                <Text style={styles.metaText}>{item.summary.completed} completed</Text>
-                <Text style={styles.metaText}>{item.summary.overdue} overdue</Text>
-              </View>
+            <Text style={styles.summaryLine}>
+              {item.summary.open} open · {item.summary.completed} done · {item.summary.overdue} overdue
+            </Text>
 
-              <View style={styles.previewColumn}>
-                {item.tasks.slice(0, 3).map((task) => (
-                  <View key={task.id} style={styles.previewRow}>
-                    <Text numberOfLines={1} style={styles.previewTitle}>
-                      {task.title}
-                    </Text>
-                    <Text style={styles.previewMeta}>{formatDueDate(task.dueDate)}</Text>
-                  </View>
-                ))}
-                {item.tasks.length === 0 ? (
-                  <Text style={styles.previewEmpty}>This list is empty.</Text>
-                ) : null}
-              </View>
-            </Pressable>
-          </Link>
+            <View style={styles.previewColumn}>
+              {item.tasks.slice(0, 2).map((task) => (
+                <View key={task.id} style={styles.previewRow}>
+                  <Text numberOfLines={1} style={styles.previewTitle}>
+                    {task.title}
+                  </Text>
+                  <Text style={styles.previewMeta}>{formatDueDate(task.dueDate)}</Text>
+                </View>
+              ))}
+              {item.tasks.length === 0 ? (
+                <Text style={styles.previewEmpty}>This list is empty.</Text>
+              ) : null}
+            </View>
+          </View>
 
           {isAddingTask ? (
             <View style={styles.taskComposer}>
@@ -385,12 +452,35 @@ export default function ListsScreen() {
                   />
                 ) : null}
               </View>
+              <View style={styles.compactSection}>
+                <Text style={styles.compactLabel}>Before photo</Text>
+                {newTaskBeforePhoto ? (
+                  <Image source={{ uri: newTaskBeforePhoto.uri }} style={styles.composerImagePreview} />
+                ) : (
+                  <View style={styles.imageEmptyState}>
+                    <Text style={styles.stateText}>A before photo is required to create the task.</Text>
+                  </View>
+                )}
+                <View style={styles.chipRow}>
+                  <Pressable onPress={() => void pickTaskImage("camera")} style={styles.filterChip}>
+                    <Text style={styles.filterChipLabel}>Camera</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void pickTaskImage("library")} style={styles.filterChip}>
+                    <Text style={styles.filterChipLabel}>Library</Text>
+                  </Pressable>
+                  {newTaskBeforePhoto ? (
+                    <Pressable onPress={() => setNewTaskBeforePhoto(null)} style={styles.filterChip}>
+                      <Text style={styles.filterChipLabel}>Remove</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
               <Pressable
-                disabled={savingTask || newTaskTitle.trim().length === 0}
+                disabled={savingTask || newTaskTitle.trim().length === 0 || !newTaskBeforePhoto}
                 onPress={() => handleCreateTask(item.id)}
                 style={[
                   styles.primaryButton,
-                  (savingTask || newTaskTitle.trim().length === 0) && styles.buttonDisabled
+                  (savingTask || newTaskTitle.trim().length === 0 || !newTaskBeforePhoto) && styles.buttonDisabled
                 ]}
               >
                 <Text style={styles.primaryButtonLabel}>
@@ -399,7 +489,7 @@ export default function ListsScreen() {
               </Pressable>
             </View>
           ) : null}
-        </View>
+        </Pressable>
       </ScaleDecorator>
     );
   }
@@ -413,20 +503,6 @@ export default function ListsScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <>
-            <View style={styles.topBar}>
-              <Pressable
-                onPress={() => setShowCreateForm((current) => !current)}
-                style={({ pressed }) => [
-                  styles.createToggleButton,
-                  pressed && styles.buttonPressed
-                ]}
-              >
-                <Text style={styles.createToggleLabel}>
-                  {showCreateForm ? "Close" : "Create list"}
-                </Text>
-              </Pressable>
-            </View>
-
             {showCreateForm ? (
               <View style={styles.createCard}>
                 <TextInput
@@ -505,6 +581,9 @@ export default function ListsScreen() {
                       } as never
                     }
                     listName={task.listName}
+                    onTaskUpdated={() => {
+                      void load();
+                    }}
                     task={task}
                   />
                 ))
@@ -530,31 +609,29 @@ const styles = StyleSheet.create({
   content: {
     gap: 18,
     paddingBottom: 32,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
+    paddingTop: 6
   },
-  topBar: {
-    alignItems: "flex-end",
-    marginTop: 8
-  },
-  createToggleButton: {
+  headerCreateButton: {
     backgroundColor: theme.colors.text,
     borderRadius: 999,
+    marginRight: 6,
     paddingHorizontal: 14,
-    paddingVertical: 10
+    paddingVertical: 8
   },
-  createToggleLabel: {
+  headerCreateButtonLabel: {
     color: theme.colors.background,
-    fontSize: 13,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold,
+    fontSize: 12,
   },
   createCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
-    gap: 14,
-    marginBottom: 18,
-    padding: 20
+    gap: 12,
+    marginBottom: 8,
+    padding: 18
   },
   input: {
     backgroundColor: theme.colors.background,
@@ -562,6 +639,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     paddingHorizontal: 16,
     paddingVertical: 15
@@ -592,8 +670,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   buttonDisabled: {
     opacity: 0.6
@@ -612,32 +690,33 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 22
   },
   stateText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"
   },
   section: {
     gap: 12,
-    marginTop: 18
+    marginTop: 6
   },
   sectionTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
-    fontSize: 28
+    fontFamily: theme.fonts.medium,
+    fontSize: 24
   },
   listCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
-    borderRadius: 28,
+    borderRadius: 22,
     borderWidth: 1,
-    gap: 14,
-    marginBottom: 18,
-    padding: 20
+    gap: 9,
+    marginBottom: 12,
+    padding: 14
   },
   activeListCard: {
     shadowColor: theme.colors.shadow,
@@ -659,79 +738,71 @@ const styles = StyleSheet.create({
   listHeading: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 12
+    gap: 8
   },
   listSwatch: {
     borderRadius: 999,
-    height: 16,
-    width: 16
+    height: 14,
+    width: 14
   },
   listName: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
-    fontSize: 28
+    fontFamily: theme.fonts.medium,
+    fontSize: 20
   },
   headerActions: {
     alignItems: "flex-end",
-    gap: 8
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 8
+    gap: 6
   },
   listMeta: {
     color: theme.colors.subtleText,
-    fontSize: 14,
-    fontWeight: "700"
+    fontFamily: theme.fonts.medium,
+    fontSize: 11,
+    letterSpacing: 0.2
   },
   dragHandle: {
     alignItems: "center",
     justifyContent: "center",
-    height: 26,
-    width: 26
+    height: 22,
+    width: 22
   },
   dragHandleIcon: {
     color: theme.colors.mutedText,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 20
+    fontFamily: theme.fonts.bold,
+    fontSize: 17,
+    lineHeight: 17
   },
   inlineActionButton: {
     backgroundColor: theme.colors.surfaceMuted,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8
+    paddingHorizontal: 10,
+    paddingVertical: 6
   },
   inlineActionLabel: {
     color: theme.colors.text,
-    fontSize: 12,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold,
+    fontSize: 10,
   },
   listBody: {
-    gap: 14
+    gap: 8
   },
   progressTrack: {
     backgroundColor: theme.colors.surfaceMuted,
     borderRadius: 999,
-    height: 10,
+    height: 7,
     overflow: "hidden"
   },
   progressFill: {
     borderRadius: 999,
-    height: 10
+    height: 7
   },
-  metaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12
-  },
-  metaText: {
+  summaryLine: {
     color: theme.colors.subtleText,
-    fontSize: 13,
-    fontWeight: "600"
+    fontFamily: theme.fonts.regular,
+    fontSize: 11,
   },
   previewColumn: {
-    gap: 10
+    gap: 6
   },
   previewRow: {
     alignItems: "center",
@@ -741,16 +812,18 @@ const styles = StyleSheet.create({
   previewTitle: {
     color: theme.colors.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: theme.fonts.medium,
+    fontSize: 13,
     marginRight: 12
   },
   previewMeta: {
     color: theme.colors.mutedText,
-    fontSize: 12
+    fontFamily: theme.fonts.regular,
+    fontSize: 10
   },
   previewEmpty: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 14
   },
   taskComposer: {
@@ -764,8 +837,21 @@ const styles = StyleSheet.create({
   },
   compactLabel: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.bold,
     fontSize: 13,
-    fontWeight: "700"
+  },
+  composerImagePreview: {
+    borderRadius: 18,
+    height: 160,
+    width: "100%"
+  },
+  imageEmptyState: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: 18,
+    justifyContent: "center",
+    minHeight: 88,
+    padding: 12
   },
   chipRow: {
     flexDirection: "row",
@@ -783,8 +869,8 @@ const styles = StyleSheet.create({
   },
   filterChipLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700",
     textTransform: "capitalize"
   },
   filterChipLabelActive: {

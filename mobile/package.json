@@ -1,5 +1,5 @@
 {
-  "name": "tasklog-mobile",
+  "name": "tasksnap-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {

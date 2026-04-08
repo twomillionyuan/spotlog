@@ -129,6 +129,15 @@ Name reservation and deletion timing were unclear.
 ### Workaround
 Created a fresh app name, `spotlogbackend`, and repointed the mobile app to the new DNS.
 
+## 2026-03-26: OpenEvents final deployment
+
+- Reprovisioned the final TaskSnap stack in the `OpenEvents` OSC team through MCP: `tasklogdb`, `tasklogcouch`, `tasklogconfig`, `tasklog-media`, and `tasklogbackend`.
+- `setup-parameter-store` again looked like it hung even though the parameter store and Valkey instance were actually created. This is still a DX issue because the tool does the backend work without cleanly signaling completion.
+- `create-backup` in `OpenEvents` worked after one failed attempt. The first backup entered `FailureTarget`, while the second completed as `SuccessCriteriaMet`. Backup reliability appears inconsistent.
+- `restore-backup` worked. I created a post-backup sentinel task through the live API, restored the database from the MCP-created backup, and confirmed that the sentinel task disappeared afterward.
+- `list-objects-on-bucket` worked in the final `OpenEvents` environment for `tasklog-media`, which means the earlier MinIO bucket lookup failure was environment-specific rather than universal.
+- `update-my-domain` successfully mapped `tasklogbackend.apps.dev.osaas.io`, and OSC shows the domain in `list-my-domains`, but the hostname serves the wrong content (`Hello, world!` / `401 Authorization Required`) instead of TaskSnap. The runner URL still serves the correct app. This is a production bug in domain routing.
+
 ### Improvement Idea
 Show deletion progress explicitly and surface when a name is still reserved by underlying service state.
 
@@ -261,3 +270,13 @@ Forced a rebuild, changed the root deploy scripts to install the API workspace e
 
 ### Improvement Idea
 Expose dependency-cache provenance in app logs and provide a first-class cache bust option tied to workspace lockfiles.
+
+## 2026-04-08: Final cleanup back to Ebba-only deployment
+
+- Confirmed the temporary `OpenEvents` TaskSnap deployment had already lost its app and domain mappings, then explicitly deleted the remaining `tasklogdb`, `tasklogcouch`, and `tasklogconfig` service instances there.
+- Verified that `OpenEvents` no longer has TaskSnap app/service deployment state and that the project is no longer hosted there.
+- Verified the retained Ebba deployment at `https://tasklogbackend.apps.osaas.io` with a full smoke test: `/health`, register, create list, create task, attachment upload, dashboard, activity, and task completion all worked.
+- Found one important repo inconsistency during cleanup: the mobile app had still been pointed at the removed `OpenEvents` runner URL. This was corrected so the default app config now targets the live Ebba deployment.
+
+### Improvement Idea
+OSC team cleanup would be safer and clearer with a single “stack delete” workflow that shows which app, database, config, and bucket resources still remain after teardown, especially when a project was temporarily reprovisioned in a second team.

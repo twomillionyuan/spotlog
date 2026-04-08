@@ -38,7 +38,7 @@ export default function TabLayout() {
         headerTintColor: theme.colors.text,
         headerTitleStyle: {
           color: theme.colors.text,
-          fontFamily: theme.fonts.serif,
+          fontFamily: theme.fonts.medium,
           fontSize: 24
         },
         sceneStyle: {
@@ -47,8 +47,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.mutedText,
         tabBarLabelStyle: {
+          fontFamily: theme.fonts.medium,
           fontSize: 11,
-          fontWeight: "700",
           paddingBottom: 4
         },
         tabBarStyle: {

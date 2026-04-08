@@ -149,6 +149,9 @@ export default function FeedScreen() {
                       } as never
                     }
                     listName={listNameById.get(task.listId)}
+                    onTaskUpdated={() => {
+                      void load();
+                    }}
                     task={task}
                   />
                 ))
@@ -225,19 +228,19 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700"
   },
   metricValue: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 34,
     lineHeight: 40
   },
   metricHint: {
     color: theme.colors.mutedText,
+    fontFamily: theme.fonts.regular,
     fontSize: 12,
-    fontWeight: "600",
     textTransform: "uppercase"
   },
   section: {
@@ -250,13 +253,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 28
   },
   sectionLink: {
     color: theme.colors.accent,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700"
   },
   emptyCard: {
     backgroundColor: theme.colors.surface,
@@ -267,6 +270,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22
   },
@@ -291,11 +295,12 @@ const styles = StyleSheet.create({
   },
   healthName: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
     fontSize: 16,
-    fontWeight: "700"
   },
   healthMeta: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 13
   },
   stateCard: {
@@ -309,11 +314,12 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 22
   },
   stateText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"
@@ -326,8 +332,8 @@ const styles = StyleSheet.create({
   },
   retryButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 14,
-    fontWeight: "700"
   },
   cardPressed: {
     opacity: 0.86

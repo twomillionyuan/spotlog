@@ -1,6 +1,11 @@
 # Load Test Results
 
-Target: `https://ecb8e1cf30.apps.osaas.io`
+Target used for measured run: `https://tasklogbackend.apps.osaas.io`
+
+Final deployed environment: `Ebba`
+
+- Working app URL: `https://tasklogbackend.apps.osaas.io`
+- Note: a separate `OpenEvents` reprovisioning run was used to validate backup/restore, bucket inspection, and a managed-domain bug before that temporary environment was removed.
 
 Method:
 

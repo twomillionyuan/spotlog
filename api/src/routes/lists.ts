@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 
 import { requireAuth } from "../middleware/auth.js";
 import {
@@ -7,10 +8,22 @@ import {
   getTaskList,
   listTaskLists,
   reorderTaskLists,
+  setTaskListAttachment,
   updateTaskList
 } from "../store.js";
+import { removeAttachment, uploadListAttachment } from "../storage.js";
 
 export const listsRouter = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 6 * 1024 * 1024
+  }
+});
+
+function readParamId(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
 
 listsRouter.use(requireAuth);
 
@@ -69,7 +82,7 @@ listsRouter.post("/", async (req, res) => {
 });
 
 listsRouter.get("/:id", async (req, res) => {
-  const list = await getTaskList(req.authUser!.id, req.params.id);
+  const list = await getTaskList(req.authUser!.id, readParamId(req.params.id));
 
   if (!list) {
     return res.status(404).json({
@@ -90,7 +103,9 @@ listsRouter.patch("/:id", async (req, res) => {
     });
   }
 
-  const list = await updateTaskList(req.authUser!.id, req.params.id, {
+  const listId = readParamId(req.params.id);
+
+  const list = await updateTaskList(req.authUser!.id, listId, {
     name,
     color
   });
@@ -104,8 +119,91 @@ listsRouter.patch("/:id", async (req, res) => {
   return res.status(200).json(list);
 });
 
+listsRouter.post("/:id/attachment", upload.single("image"), async (req, res) => {
+  const list = await getTaskList(req.authUser!.id, readParamId(req.params.id));
+
+  if (!list) {
+    return res.status(404).json({
+      error: "List not found"
+    });
+  }
+
+  if (!req.file || !req.file.mimetype.startsWith("image/")) {
+    return res.status(400).json({
+      error: "Image file is required"
+    });
+  }
+
+  try {
+    const uploaded = await uploadListAttachment({
+      userId: req.authUser!.id,
+      listId: list.id,
+      buffer: req.file.buffer,
+      contentType: req.file.mimetype
+    });
+
+    const existingStorageKey = (list as { attachmentStorageKey?: string | null }).attachmentStorageKey;
+
+    if (existingStorageKey) {
+      await removeAttachment(existingStorageKey);
+    }
+
+    const updated = await setTaskListAttachment(req.authUser!.id, list.id, {
+      attachmentUrl: uploaded.attachmentUrl,
+      attachmentStorageKey: uploaded.key
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    if (error instanceof Error && error.message === "STORAGE_DISABLED") {
+      return res.status(503).json({
+        error: "Storage is not configured"
+      });
+    }
+
+    throw error;
+  }
+});
+
+listsRouter.delete("/:id/attachment", async (req, res) => {
+  const list = await getTaskList(req.authUser!.id, readParamId(req.params.id));
+
+  if (!list) {
+    return res.status(404).json({
+      error: "List not found"
+    });
+  }
+
+  if (!list.attachmentUrl) {
+    return res.status(200).json(list);
+  }
+
+  try {
+    const existingStorageKey = (list as { attachmentStorageKey?: string | null }).attachmentStorageKey;
+
+    if (existingStorageKey) {
+      await removeAttachment(existingStorageKey);
+    }
+
+    const updated = await setTaskListAttachment(req.authUser!.id, list.id, {
+      attachmentUrl: null,
+      attachmentStorageKey: null
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    if (error instanceof Error && error.message === "STORAGE_DISABLED") {
+      return res.status(503).json({
+        error: "Storage is not configured"
+      });
+    }
+
+    throw error;
+  }
+});
+
 listsRouter.delete("/:id", async (req, res) => {
-  const deleted = await archiveTaskList(req.authUser!.id, req.params.id);
+  const deleted = await archiveTaskList(req.authUser!.id, readParamId(req.params.id));
 
   if (!deleted) {
     return res.status(404).json({

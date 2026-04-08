@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 export const theme = {
   colors: {
     background: "#FBF5FF",
@@ -17,16 +15,11 @@ export const theme = {
     shadow: "rgba(78, 61, 117, 0.14)"
   },
   fonts: {
-    serif: Platform.select({
-      ios: "Georgia",
-      android: "serif",
-      default: "Georgia"
-    }),
-    sans: Platform.select({
-      ios: "System",
-      android: "sans-serif",
-      default: "system-ui"
-    })
+    regular: "Iosevka",
+    medium: "IosevkaSemiBold",
+    bold: "IosevkaBold",
+    serif: "Iosevka",
+    sans: "Iosevka"
   }
 } as const;
 

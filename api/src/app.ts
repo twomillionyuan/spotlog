@@ -20,7 +20,7 @@ export function createApp() {
 
   app.get("/", (_req, res) => {
     res.status(200).json({
-      name: "tasklog-api",
+      name: "tasksnap-api",
       ok: true,
       endpoints: [
         "/health",

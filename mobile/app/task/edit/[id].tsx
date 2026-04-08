@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Te
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { deleteTask, deleteTaskAttachment, getLists, getTask, updateTask, uploadTaskAttachment } from "@/src/lib/api";
+import { deleteTask, deleteTaskPhoto, getLists, getTask, updateTask, uploadTaskPhoto } from "@/src/lib/api";
 import {
   type DuePreset,
   dueDateFromPreset,
@@ -124,7 +124,7 @@ export default function EditTaskScreen() {
     }
   }
 
-  async function handlePickImage(source: "camera" | "library") {
+  async function handlePickPhoto(kind: "before" | "after", source: "camera" | "library") {
     if (!token || !id) {
       return;
     }
@@ -161,7 +161,7 @@ export default function EditTaskScreen() {
 
     try {
       const asset = result.assets[0];
-      const updated = await uploadTaskAttachment(token, id, {
+      const updated = await uploadTaskPhoto(token, id, kind, {
         uri: asset.uri,
         mimeType: asset.mimeType ?? "image/jpeg",
         fileName: asset.fileName ?? `task-${id}.jpg`
@@ -175,7 +175,7 @@ export default function EditTaskScreen() {
     }
   }
 
-  async function handleRemoveAttachment() {
+  async function handleRemovePhoto(kind: "before" | "after") {
     if (!token || !id) {
       return;
     }
@@ -184,7 +184,7 @@ export default function EditTaskScreen() {
     setError(null);
 
     try {
-      const updated = await deleteTaskAttachment(token, id);
+      const updated = await deleteTaskPhoto(token, id, kind);
       setTask(updated);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not remove image");
@@ -322,33 +322,69 @@ export default function EditTaskScreen() {
               </View>
 
               <View style={styles.attachmentSection}>
-                <Text style={styles.label}>Attachment</Text>
-                {task.attachmentUrl ? (
-                  <Image source={{ uri: task.attachmentUrl }} style={styles.attachmentPreview} />
+                <Text style={styles.label}>Before photo</Text>
+                {task.beforePhotoUrl ? (
+                  <Image source={{ uri: task.beforePhotoUrl }} style={styles.attachmentPreview} />
                 ) : (
                   <View style={styles.attachmentEmpty}>
-                    <Text style={styles.helperText}>Add an image for this task.</Text>
+                    <Text style={styles.helperText}>Add the before photo for this task.</Text>
                   </View>
                 )}
                 <View style={styles.attachmentActions}>
                   <Pressable
                     disabled={uploadingAttachment}
-                    onPress={() => handlePickImage("camera")}
+                    onPress={() => handlePickPhoto("before", "camera")}
                     style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
                   >
                     <Text style={styles.filterChipLabel}>Camera</Text>
                   </Pressable>
                   <Pressable
                     disabled={uploadingAttachment}
-                    onPress={() => handlePickImage("library")}
+                    onPress={() => handlePickPhoto("before", "library")}
                     style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
                   >
                     <Text style={styles.filterChipLabel}>Library</Text>
                   </Pressable>
-                  {task.attachmentUrl ? (
+                  {task.beforePhotoUrl ? (
                     <Pressable
                       disabled={uploadingAttachment}
-                      onPress={handleRemoveAttachment}
+                      onPress={() => handleRemovePhoto("before")}
+                      style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                    >
+                      <Text style={styles.filterChipLabel}>Remove</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.attachmentSection}>
+                <Text style={styles.label}>After photo</Text>
+                {task.afterPhotoUrl ? (
+                  <Image source={{ uri: task.afterPhotoUrl }} style={styles.attachmentPreview} />
+                ) : (
+                  <View style={styles.attachmentEmpty}>
+                    <Text style={styles.helperText}>Add the finished-result photo before completing the task.</Text>
+                  </View>
+                )}
+                <View style={styles.attachmentActions}>
+                  <Pressable
+                    disabled={uploadingAttachment}
+                    onPress={() => handlePickPhoto("after", "camera")}
+                    style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                  >
+                    <Text style={styles.filterChipLabel}>Camera</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={uploadingAttachment}
+                    onPress={() => handlePickPhoto("after", "library")}
+                    style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
+                  >
+                    <Text style={styles.filterChipLabel}>Library</Text>
+                  </Pressable>
+                  {task.afterPhotoUrl ? (
+                    <Pressable
+                      disabled={uploadingAttachment}
+                      onPress={() => handleRemovePhoto("after")}
                       style={[styles.filterChip, uploadingAttachment && styles.buttonDisabled]}
                     >
                       <Text style={styles.filterChipLabel}>Remove</Text>
@@ -403,12 +439,13 @@ const styles = StyleSheet.create({
   },
   label: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.bold,
     fontSize: 14,
-    fontWeight: "700",
     marginTop: 4
   },
   helperText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 13,
     lineHeight: 18
   },
@@ -418,6 +455,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     paddingHorizontal: 16,
     paddingVertical: 15
@@ -441,8 +479,8 @@ const styles = StyleSheet.create({
   },
   listChipLabel: {
     color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700"
   },
   filterChip: {
     backgroundColor: theme.colors.surfaceMuted,
@@ -455,8 +493,8 @@ const styles = StyleSheet.create({
   },
   filterChipLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700",
     textTransform: "capitalize"
   },
   filterChipLabelActive: {
@@ -498,8 +536,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   deleteButton: {
     alignItems: "center",
@@ -509,14 +547,15 @@ const styles = StyleSheet.create({
   },
   deleteButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   buttonDisabled: {
     opacity: 0.6
   },
   error: {
     color: theme.colors.danger,
+    fontFamily: theme.fonts.regular,
     fontSize: 14,
     lineHeight: 20
   },
@@ -531,11 +570,12 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 22
   },
   stateText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"

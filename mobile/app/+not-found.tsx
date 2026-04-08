@@ -38,12 +38,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 34,
     marginBottom: 10
   },
   body: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 18
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 14,
-    fontWeight: "700"
   }
 });

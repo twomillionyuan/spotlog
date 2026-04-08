@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TaskLog",
-    "slug": "tasklog",
+    "name": "TaskSnap",
+    "slug": "tasksnap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tasklog",
+    "scheme": "tasksnap",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -13,9 +13,14 @@
       "backgroundColor": "#F8F4EC"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.twomillionyuan.tasksnap",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.twomillionyuan.tasksnap",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -35,6 +40,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6103ce89-aa90-441e-a893-14defa45bbea"
+      }
     }
   }
 }

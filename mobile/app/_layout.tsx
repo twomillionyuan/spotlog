@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
@@ -15,6 +16,16 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const [loaded] = useFonts({
+    Iosevka: require("../assets/fonts/Iosevka-Regular.ttf"),
+    IosevkaSemiBold: require("../assets/fonts/Iosevka-SemiBold.ttf"),
+    IosevkaBold: require("../assets/fonts/Iosevka-Bold.ttf")
+  });
+
+  if (!loaded) {
+    return null;
+  }
+
   return <RootLayoutNav />;
 }
 
@@ -42,18 +53,22 @@ function RootLayoutNav() {
             <Stack.Screen
               name="list/[id]"
               options={{
+                headerBackButtonDisplayMode: "minimal",
                 headerTintColor: theme.colors.text,
                 headerTitleStyle: {
-                  color: theme.colors.text
+                  color: theme.colors.text,
+                  fontFamily: theme.fonts.medium
                 }
               }}
             />
             <Stack.Screen
               name="task/edit/[id]"
               options={{
+                headerBackButtonDisplayMode: "minimal",
                 headerTintColor: theme.colors.text,
                 headerTitleStyle: {
-                  color: theme.colors.text
+                  color: theme.colors.text,
+                  fontFamily: theme.fonts.medium
                 }
               }}
             />

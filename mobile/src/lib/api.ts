@@ -131,6 +131,33 @@ export function deleteList(token: string, listId: string) {
   });
 }
 
+export function uploadListAttachment(token: string, listId: string, file: {
+  uri: string;
+  mimeType: string;
+  fileName: string;
+}) {
+  const formData = new FormData();
+  formData.append("image", {
+    uri: file.uri,
+    type: file.mimeType,
+    name: file.fileName
+  } as unknown as Blob);
+
+  return request<TaskList>(`/api/lists/${listId}/attachment`, {
+    token,
+    method: "POST",
+    body: formData,
+    isFormData: true
+  });
+}
+
+export function deleteListAttachment(token: string, listId: string) {
+  return request<TaskList>(`/api/lists/${listId}/attachment`, {
+    token,
+    method: "DELETE"
+  });
+}
+
 export function getTask(token: string, taskId: string) {
   return request<Task>(`/api/tasks/${taskId}`, {
     token
@@ -180,7 +207,7 @@ export function deleteTask(token: string, taskId: string) {
   });
 }
 
-export function uploadTaskAttachment(token: string, taskId: string, file: {
+export function uploadTaskPhoto(token: string, taskId: string, kind: "before" | "after", file: {
   uri: string;
   mimeType: string;
   fileName: string;
@@ -192,7 +219,7 @@ export function uploadTaskAttachment(token: string, taskId: string, file: {
     name: file.fileName
   } as unknown as Blob);
 
-  return request<Task>(`/api/tasks/${taskId}/attachment`, {
+  return request<Task>(`/api/tasks/${taskId}/${kind}-photo`, {
     token,
     method: "POST",
     body: formData,
@@ -200,8 +227,8 @@ export function uploadTaskAttachment(token: string, taskId: string, file: {
   });
 }
 
-export function deleteTaskAttachment(token: string, taskId: string) {
-  return request<Task>(`/api/tasks/${taskId}/attachment`, {
+export function deleteTaskPhoto(token: string, taskId: string, kind: "before" | "after") {
+  return request<Task>(`/api/tasks/${taskId}/${kind}-photo`, {
     token,
     method: "DELETE"
   });

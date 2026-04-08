@@ -1,6 +1,6 @@
-# TaskLog API
+# TaskSnap API
 
-Node.js REST API for the TaskLog mobile app.
+Node.js REST API for the TaskSnap mobile app.
 
 ## Endpoints
 
@@ -38,5 +38,5 @@ Node.js REST API for the TaskLog mobile app.
   - `COUCHDB_PASSWORD`
   - `COUCHDB_DATABASE`
 
-If storage is configured, TaskLog supports task image attachments stored in OSC MinIO.  
-If CouchDB is configured, TaskLog exposes a synced activity feed through `/api/activity`.
+If storage is configured, TaskSnap supports task image attachments stored in OSC MinIO.  
+If CouchDB is configured, TaskSnap exposes a synced activity feed through `/api/activity`.

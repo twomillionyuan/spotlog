@@ -139,6 +139,9 @@ export default function ListDetailScreen() {
                         params: { id: task.id }
                       } as never
                     }
+                    onTaskUpdated={() => {
+                      void load();
+                    }}
                     task={task}
                   />
                 ))
@@ -183,11 +186,12 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 34
   },
   heroBody: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22
   },
@@ -207,8 +211,8 @@ const styles = StyleSheet.create({
   },
   filterChipLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 13,
-    fontWeight: "700",
     textTransform: "capitalize"
   },
   filterChipLabelActive: {
@@ -226,6 +230,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22
   },
@@ -237,8 +242,8 @@ const styles = StyleSheet.create({
   },
   archiveButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   buttonDisabled: {
     opacity: 0.6
@@ -254,11 +259,12 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 22
   },
   stateText: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"

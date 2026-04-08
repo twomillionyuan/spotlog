@@ -109,19 +109,20 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: theme.colors.accent,
+    fontFamily: theme.fonts.bold,
     fontSize: 13,
-    fontWeight: "700",
     letterSpacing: 1.6,
     textTransform: "uppercase"
   },
   title: {
     color: theme.colors.text,
-    fontFamily: theme.fonts.serif,
+    fontFamily: theme.fonts.medium,
     fontSize: 34,
     lineHeight: 42
   },
   subtitle: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.regular,
     fontSize: 15,
     lineHeight: 22
   },
@@ -135,6 +136,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
     fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 15
@@ -148,8 +150,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonLabel: {
     color: theme.colors.background,
+    fontFamily: theme.fonts.bold,
     fontSize: 15,
-    fontWeight: "700"
   },
   secondaryButton: {
     alignItems: "center",
@@ -157,11 +159,12 @@ const styles = StyleSheet.create({
   },
   secondaryButtonLabel: {
     color: theme.colors.subtleText,
+    fontFamily: theme.fonts.medium,
     fontSize: 14,
-    fontWeight: "600"
   },
   error: {
     color: theme.colors.danger,
+    fontFamily: theme.fonts.regular,
     fontSize: 14,
     lineHeight: 20
   },

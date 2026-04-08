@@ -1,6 +1,6 @@
-# TaskLog
+# TaskSnap
 
-TaskLog is a private to-do list mobile app built with Expo React Native and an OSC-managed backend provisioned through MCP.
+TaskSnap is a private to-do list mobile app built with Expo React Native and an OSC-managed backend provisioned through MCP.
 
 This repo implements the MCP-first OSC assignment shape with a task-management product:
 
