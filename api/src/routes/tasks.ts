@@ -70,7 +70,7 @@ tasksRouter.post("/", async (req, res) => {
 
     if (error instanceof Error && error.message === "AFTER_PHOTO_REQUIRED") {
       return res.status(400).json({
-        error: "Add both a before photo and an after photo before completing this task"
+        error: "Add an after photo before completing this task"
       });
     }
 
@@ -223,7 +223,7 @@ tasksRouter.patch("/:id", async (req, res) => {
 
     if (error instanceof Error && error.message === "AFTER_PHOTO_REQUIRED") {
       return res.status(400).json({
-        error: "Add both a before photo and an after photo before completing this task"
+        error: "Add an after photo before completing this task"
       });
     }
 
