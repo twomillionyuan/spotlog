@@ -1,6 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
 
+import { recordActivity } from "../activity.js";
+import { pool } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createTask, deleteTask, getTask, setTaskPhoto, updateTask } from "../store.js";
 import { removeAttachment, uploadTaskPhoto } from "../storage.js";
@@ -27,6 +29,62 @@ function readParamId(value: string | string[] | undefined) {
 export const tasksRouter = Router();
 
 tasksRouter.use(requireAuth);
+
+async function completeTaskWithoutBeforePhoto(userId: string, taskId: string) {
+  const existing = await getTask(userId, taskId);
+
+  if (!existing || !existing.afterPhotoUrl) {
+    return null;
+  }
+
+  const timestamp = new Date().toISOString();
+
+  await pool.query("BEGIN");
+
+  try {
+    await pool.query(
+      `
+        UPDATE tasks
+        SET completed_at = COALESCE(completed_at, $1),
+            updated_at = $1
+        WHERE id = $2
+          AND user_id = $3
+          AND deleted_at IS NULL
+      `,
+      [timestamp, taskId, userId]
+    );
+
+    await pool.query(
+      `
+        UPDATE task_lists
+        SET updated_at = $1
+        WHERE id = $2
+          AND user_id = $3
+          AND archived_at IS NULL
+      `,
+      [timestamp, existing.listId, userId]
+    );
+
+    await pool.query("COMMIT");
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    throw error;
+  }
+
+  const completedTask = await getTask(userId, taskId);
+
+  if (completedTask) {
+    void recordActivity({
+      userId,
+      entityType: "task",
+      entityId: taskId,
+      title: completedTask.title,
+      type: "completed"
+    });
+  }
+
+  return completedTask;
+}
 
 tasksRouter.post("/", async (req, res) => {
   const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
@@ -183,6 +241,7 @@ registerPhotoRoutes("before");
 registerPhotoRoutes("after");
 
 tasksRouter.patch("/:id", async (req, res) => {
+  const taskId = readParamId(req.params.id);
   const updates = {
     title: typeof req.body?.title === "string" ? req.body.title : undefined,
     notes: typeof req.body?.notes === "string" ? req.body.notes : undefined,
@@ -205,7 +264,7 @@ tasksRouter.patch("/:id", async (req, res) => {
   }
 
   try {
-    const task = await updateTask(req.authUser!.id, readParamId(req.params.id), updates);
+    const task = await updateTask(req.authUser!.id, taskId, updates);
 
     if (!task) {
       return res.status(404).json({
@@ -222,6 +281,14 @@ tasksRouter.patch("/:id", async (req, res) => {
     }
 
     if (error instanceof Error && error.message === "AFTER_PHOTO_REQUIRED") {
+      if (updates.completed === true) {
+        const completedTask = await completeTaskWithoutBeforePhoto(req.authUser!.id, taskId);
+
+        if (completedTask) {
+          return res.status(200).json(completedTask);
+        }
+      }
+
       return res.status(400).json({
         error: "Add an after photo before completing this task"
       });
